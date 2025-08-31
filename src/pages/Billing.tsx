@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Receipt, Search, Filter, Download, Eye, CreditCard } from 'lucide-react';
+import { Receipt, Search, Filter, Download, Eye, CreditCard, User, Calendar, Clock } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';

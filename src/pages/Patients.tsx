@@ -1,18 +1,23 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Eye } from 'lucide-react';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/Card';
-import { AddPatientModal } from '../components/AddPatientModal';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import { Patient } from '../types';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from "react";
+import { Plus, Search, Edit, Trash2, Eye, Users } from "lucide-react";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+} from "../components/ui/Card";
+import { AddPatientModal } from "../components/AddPatientModal";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../hooks/useAuth";
+import { Patient } from "../types";
+import { format } from "date-fns";
 
 export function Patients() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -22,10 +27,10 @@ export function Patients() {
 
     const fetchPatients = async () => {
       const { data } = await supabase
-        .from('patients')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .from("patients")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (data) {
         setPatients(data);
@@ -38,13 +43,13 @@ export function Patients() {
 
     // Real-time subscription
     const subscription = supabase
-      .channel('patients')
+      .channel("patients")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'patients',
+          event: "*",
+          schema: "public",
+          table: "patients",
           filter: `user_id=eq.${user.id}`,
         },
         () => {
@@ -59,24 +64,23 @@ export function Patients() {
   }, [user]);
 
   useEffect(() => {
-    const filtered = patients.filter(patient =>
-      patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      patient.contact.includes(searchTerm) ||
-      (patient.email && patient.email.toLowerCase().includes(searchTerm.toLowerCase()))
+    const filtered = patients.filter(
+      (patient) =>
+        patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        patient.contact.includes(searchTerm) ||
+        (patient.email &&
+          patient.email.toLowerCase().includes(searchTerm.toLowerCase()))
     );
     setFilteredPatients(filtered);
   }, [searchTerm, patients]);
 
   const deletePatient = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this patient?')) return;
+    if (!confirm("Are you sure you want to delete this patient?")) return;
 
-    const { error } = await supabase
-      .from('patients')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from("patients").delete().eq("id", id);
 
     if (error) {
-      alert('Error deleting patient: ' + error.message);
+      alert("Error deleting patient: " + error.message);
     }
   };
 
@@ -131,13 +135,19 @@ export function Patients() {
       {/* Patients Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredPatients.map((patient) => (
-          <Card key={patient.id} className="hover:shadow-md transition-shadow duration-200">
+          <Card
+            key={patient.id}
+            className="hover:shadow-md transition-shadow duration-200"
+          >
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{patient.name}</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {patient.name}
+                  </h3>
                   <p className="text-sm text-gray-500">
-                    {patient.age && `${patient.age} years`} {patient.gender && `• ${patient.gender}`}
+                    {patient.age && `${patient.age} years`}{" "}
+                    {patient.gender && `• ${patient.gender}`}
                   </p>
                 </div>
                 <div className="flex space-x-1">
@@ -147,7 +157,7 @@ export function Patients() {
                   <button className="p-1 text-gray-400 hover:text-green-600 transition-colors duration-200">
                     <Edit className="h-4 w-4" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => deletePatient(patient.id)}
                     className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
                   >
@@ -170,7 +180,7 @@ export function Patients() {
                 <div className="flex items-center text-sm">
                   <span className="text-gray-500 w-20">Joined:</span>
                   <span className="text-gray-900">
-                    {format(new Date(patient.created_at), 'MMM d, yyyy')}
+                    {format(new Date(patient.created_at), "MMM d, yyyy")}
                   </span>
                 </div>
               </div>
@@ -185,9 +195,13 @@ export function Patients() {
             <div className="text-gray-400 mb-4">
               <Users className="h-12 w-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No patients found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No patients found
+            </h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm ? 'Try adjusting your search criteria' : 'Get started by adding your first patient'}
+              {searchTerm
+                ? "Try adjusting your search criteria"
+                : "Get started by adding your first patient"}
             </p>
             <Button onClick={() => setIsAddModalOpen(true)}>
               <Plus className="h-5 w-5 mr-2" />
