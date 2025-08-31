@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout } from './components/Layout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { Auth } from './pages/Auth';
+import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
 import { Patients } from './pages/Patients';
 import { Doctors } from './pages/Doctors';
@@ -26,9 +27,10 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Router>
         <Routes>
+          <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
           <Route
-            path="/*"
+            path="/admin/*"
             element={
               <ProtectedRoute>
                 <Layout />
@@ -42,7 +44,7 @@ function App() {
             <Route path="billing" element={<Billing />} />
             <Route path="reports" element={<Reports />} />
             <Route path="settings" element={<Settings />} />
-            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
         </Routes>
       </Router>
