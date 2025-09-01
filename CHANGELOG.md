@@ -20,7 +20,12 @@
 - Created a new `History` page to display recent activities and changes made within the dashboard.
 - Fixed notification center position to ensure it appears correctly on the screen.
 - Tested and verified patient, doctor, appointment, Billing, reports, history, settings functionalities to ensure they are working as expected.
-
+- Implemented a `RecentActivities` component to display a list of recent activities in the dashboard.
+- Updated the `Dashboard` layout to include the `RecentActivities` component for better user engagement.
+- Added `overflow-y-auto` class to the `RecentActivities` component to enable scrolling when the content exceeds the maximum height.
+- Created `EditPatientsModal` components and `ViewPatientModal` to add  `Edit/view` feature for patients.
+- Created `EditPatientsModal` component to add `Edit` feature for doctors.
+- Created `RescheduleAppointmentModal` component to add `Reschedule` feature for appointments.
 
 ----------
 

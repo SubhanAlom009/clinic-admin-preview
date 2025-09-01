@@ -1,21 +1,40 @@
-import React, { useState, useEffect } from 'react';
-import { Calendar, Clock, User, UserCheck, Search, Filter } from 'lucide-react';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Select } from '../components/ui/Select';
-import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/Card';
-import { AddAppointmentModal } from '../components/AddAppointmentModal';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import { Appointment } from '../types';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from "react";
+import {
+  Calendar,
+  Clock,
+  User,
+  UserCheck,
+  Search,
+  Filter,
+  RotateCcw,
+} from "lucide-react";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Select } from "../components/ui/Select";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+} from "../components/ui/Card";
+import { AddAppointmentModal } from "../components/AddAppointmentModal";
+import { RescheduleAppointmentModal } from "../components/RescheduleAppointmentModal";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../hooks/useAuth";
+import { Appointment } from "../types";
+import { format } from "date-fns";
 
 export function Appointments() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [filteredAppointments, setFilteredAppointments] = useState<Appointment[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [filteredAppointments, setFilteredAppointments] = useState<
+    Appointment[]
+  >([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedAppointment, setSelectedAppointment] =
+    useState<Appointment | null>(null);
+  const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -24,14 +43,16 @@ export function Appointments() {
 
     const fetchAppointments = async () => {
       const { data } = await supabase
-        .from('appointments')
-        .select(`
+        .from("appointments")
+        .select(
+          `
           *,
           patient:patients(*),
           doctor:doctors(*)
-        `)
-        .eq('user_id', user.id)
-        .order('appointment_datetime', { ascending: false });
+        `
+        )
+        .eq("user_id", user.id)
+        .order("appointment_datetime", { ascending: false });
 
       if (data) {
         setAppointments(data);
@@ -44,13 +65,13 @@ export function Appointments() {
 
     // Real-time subscription
     const subscription = supabase
-      .channel('appointments')
+      .channel("appointments")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'appointments',
+          event: "*",
+          schema: "public",
+          table: "appointments",
           filter: `user_id=eq.${user.id}`,
         },
         () => {
@@ -68,14 +89,21 @@ export function Appointments() {
     let filtered = appointments;
 
     if (searchTerm) {
-      filtered = filtered.filter(appointment =>
-        appointment.patient?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        appointment.doctor?.name.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (appointment) =>
+          appointment.patient?.name
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          appointment.doctor?.name
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase())
       );
     }
 
     if (statusFilter) {
-      filtered = filtered.filter(appointment => appointment.status === statusFilter);
+      filtered = filtered.filter(
+        (appointment) => appointment.status === statusFilter
+      );
     }
 
     setFilteredAppointments(filtered);
@@ -83,30 +111,40 @@ export function Appointments() {
 
   const updateAppointmentStatus = async (id: string, status: string) => {
     const { error } = await supabase
-      .from('appointments')
+      .from("appointments")
       .update({ status })
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) {
-      alert('Error updating appointment: ' + error.message);
+      alert("Error updating appointment: " + error.message);
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'scheduled':
-        return 'bg-blue-100 text-blue-800';
-      case 'completed':
-        return 'bg-green-100 text-green-800';
-      case 'cancelled':
-        return 'bg-red-100 text-red-800';
-      case 'no_show':
-        return 'bg-gray-100 text-gray-800';
-      case 'rescheduled':
-        return 'bg-yellow-100 text-yellow-800';
+      case "scheduled":
+        return "bg-blue-100 text-blue-800";
+      case "completed":
+        return "bg-green-100 text-green-800";
+      case "cancelled":
+        return "bg-red-100 text-red-800";
+      case "no_show":
+        return "bg-gray-100 text-gray-800";
+      case "rescheduled":
+        return "bg-yellow-100 text-yellow-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
+  };
+
+  const handleRescheduleAppointment = (appointment: Appointment) => {
+    setSelectedAppointment(appointment);
+    setIsRescheduleModalOpen(true);
+  };
+
+  const handleCloseModals = () => {
+    setSelectedAppointment(null);
+    setIsRescheduleModalOpen(false);
   };
 
   if (loading) {
@@ -161,12 +199,12 @@ export function Appointments() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               options={[
-                { value: '', label: 'All Statuses' },
-                { value: 'scheduled', label: 'Scheduled' },
-                { value: 'completed', label: 'Completed' },
-                { value: 'cancelled', label: 'Cancelled' },
-                { value: 'no_show', label: 'No Show' },
-                { value: 'rescheduled', label: 'Rescheduled' },
+                { value: "", label: "All Statuses" },
+                { value: "scheduled", label: "Scheduled" },
+                { value: "completed", label: "Completed" },
+                { value: "cancelled", label: "Cancelled" },
+                { value: "no_show", label: "No Show" },
+                { value: "rescheduled", label: "Rescheduled" },
               ]}
             />
           </div>
@@ -176,7 +214,10 @@ export function Appointments() {
       {/* Appointments List */}
       <div className="space-y-4">
         {filteredAppointments.map((appointment) => (
-          <Card key={appointment.id} className="hover:shadow-md transition-shadow duration-200">
+          <Card
+            key={appointment.id}
+            className="hover:shadow-md transition-shadow duration-200"
+          >
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex-1 space-y-2">
@@ -184,11 +225,15 @@ export function Appointments() {
                     <h3 className="text-lg font-semibold text-gray-900">
                       {appointment.patient?.name}
                     </h3>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(appointment.status)}`}>
-                      {appointment.status.replace('_', ' ').toUpperCase()}
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                        appointment.status
+                      )}`}
+                    >
+                      {appointment.status.replace("_", " ").toUpperCase()}
                     </span>
                   </div>
-                  
+
                   <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                     <div className="flex items-center">
                       <UserCheck className="h-4 w-4 mr-1" />
@@ -196,25 +241,45 @@ export function Appointments() {
                     </div>
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
-                      {format(new Date(appointment.appointment_datetime), 'MMM d, yyyy')}
+                      {format(
+                        new Date(appointment.appointment_datetime),
+                        "MMM d, yyyy"
+                      )}
                     </div>
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 mr-1" />
-                      {format(new Date(appointment.appointment_datetime), 'h:mm a')}
+                      {format(
+                        new Date(appointment.appointment_datetime),
+                        "h:mm a"
+                      )}
                     </div>
                   </div>
 
                   {appointment.notes && (
-                    <p className="text-sm text-gray-600 mt-2">{appointment.notes}</p>
+                    <p className="text-sm text-gray-600 mt-2">
+                      {appointment.notes}
+                    </p>
                   )}
                 </div>
 
                 <div className="flex space-x-2 mt-4 lg:mt-0">
-                  {appointment.status === 'scheduled' && (
+                  {(appointment.status === "scheduled" ||
+                    appointment.status === "rescheduled") && (
                     <>
                       <Button
                         size="sm"
-                        onClick={() => updateAppointmentStatus(appointment.id, 'completed')}
+                        variant="outline"
+                        onClick={() => handleRescheduleAppointment(appointment)}
+                        className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Reschedule
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          updateAppointmentStatus(appointment.id, "completed")
+                        }
                         className="bg-green-600 hover:bg-green-700"
                       >
                         Mark Complete
@@ -222,7 +287,9 @@ export function Appointments() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => updateAppointmentStatus(appointment.id, 'cancelled')}
+                        onClick={() =>
+                          updateAppointmentStatus(appointment.id, "cancelled")
+                        }
                       >
                         Cancel
                       </Button>
@@ -241,9 +308,13 @@ export function Appointments() {
             <div className="text-gray-400 mb-4">
               <Calendar className="h-12 w-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No appointments found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No appointments found
+            </h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm || statusFilter ? 'Try adjusting your search criteria' : 'Get started by scheduling your first appointment'}
+              {searchTerm || statusFilter
+                ? "Try adjusting your search criteria"
+                : "Get started by scheduling your first appointment"}
             </p>
             <Button onClick={() => setIsAddModalOpen(true)}>
               <Calendar className="h-5 w-5 mr-2" />
@@ -256,6 +327,12 @@ export function Appointments() {
       <AddAppointmentModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+      />
+
+      <RescheduleAppointmentModal
+        isOpen={isRescheduleModalOpen}
+        onClose={handleCloseModals}
+        appointment={selectedAppointment}
       />
     </div>
   );

@@ -1,20 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { Receipt, Search, Filter, Download, Eye, CreditCard, User, Calendar, Clock } from 'lucide-react';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Select } from '../components/ui/Select';
-import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/Card';
-import { AddBillModal } from '../components/AddBillModal';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import { Bill } from '../types';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from "react";
+import {
+  Receipt,
+  Search,
+  Filter,
+  Download,
+  Eye,
+  CreditCard,
+  User,
+  Calendar,
+  Clock,
+} from "lucide-react";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Select } from "../components/ui/Select";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+} from "../components/ui/Card";
+import { AddBillModal } from "../components/AddBillModal";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../hooks/useAuth";
+import { Bill } from "../types";
+import { format } from "date-fns";
 
 export function Billing() {
   const [bills, setBills] = useState<Bill[]>([]);
   const [filteredBills, setFilteredBills] = useState<Bill[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
@@ -24,13 +39,15 @@ export function Billing() {
 
     const fetchBills = async () => {
       const { data } = await supabase
-        .from('bills')
-        .select(`
+        .from("bills")
+        .select(
+          `
           *,
           patient:patients(*)
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        `
+        )
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (data) {
         setBills(data);
@@ -43,13 +60,13 @@ export function Billing() {
 
     // Real-time subscription
     const subscription = supabase
-      .channel('bills')
+      .channel("bills")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'bills',
+          event: "*",
+          schema: "public",
+          table: "bills",
           filter: `user_id=eq.${user.id}`,
         },
         () => {
@@ -67,26 +84,31 @@ export function Billing() {
     let filtered = bills;
 
     if (searchTerm) {
-      filtered = filtered.filter(bill =>
-        bill.patient?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        bill.bill_number.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(
+        (bill) =>
+          bill.patient?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          bill.bill_number.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     if (statusFilter) {
-      filtered = filtered.filter(bill => bill.status === statusFilter);
+      filtered = filtered.filter((bill) => bill.status === statusFilter);
     }
 
     setFilteredBills(filtered);
   }, [searchTerm, statusFilter, bills]);
 
-  const updatePaymentStatus = async (id: string, status: string, paymentMode?: string) => {
-    const updateData: any = { 
+  const updatePaymentStatus = async (
+    id: string,
+    status: string,
+    paymentMode?: string
+  ) => {
+    const updateData: any = {
       status,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
-    
-    if (status === 'paid') {
+
+    if (status === "paid") {
       updateData.payment_date = new Date().toISOString();
       if (paymentMode) {
         updateData.payment_mode = paymentMode;
@@ -94,38 +116,38 @@ export function Billing() {
     }
 
     const { error } = await supabase
-      .from('bills')
+      .from("bills")
       .update(updateData)
-      .eq('id', id);
+      .eq("id", id);
 
     if (error) {
-      alert('Error updating payment: ' + error.message);
+      alert("Error updating payment: " + error.message);
     }
   };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'paid':
-        return 'bg-green-100 text-green-800';
-      case 'pending':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'overdue':
-        return 'bg-red-100 text-red-800';
-      case 'partially_paid':
-        return 'bg-blue-100 text-blue-800';
-      case 'cancelled':
-        return 'bg-gray-100 text-gray-800';
+      case "paid":
+        return "bg-green-100 text-green-800";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800";
+      case "overdue":
+        return "bg-red-100 text-red-800";
+      case "partially_paid":
+        return "bg-blue-100 text-blue-800";
+      case "cancelled":
+        return "bg-gray-100 text-gray-800";
       default:
-        return 'bg-gray-100 text-gray-800';
+        return "bg-gray-100 text-gray-800";
     }
   };
 
   const totalRevenue = bills
-    .filter(bill => bill.status === 'paid')
+    .filter((bill) => bill.status === "paid")
     .reduce((sum, bill) => sum + bill.total_amount, 0);
 
   const pendingAmount = bills
-    .filter(bill => bill.status === 'pending' || bill.status === 'overdue')
+    .filter((bill) => bill.status === "pending" || bill.status === "overdue")
     .reduce((sum, bill) => sum + bill.total_amount, 0);
 
   if (loading) {
@@ -153,8 +175,12 @@ export function Billing() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Billing & Payments</h1>
-          <p className="text-gray-600 mt-1">Manage invoices and track payments</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            Billing & Payments
+          </h1>
+          <p className="text-gray-600 mt-1">
+            Manage invoices and track payments
+          </p>
         </div>
         <Button
           onClick={() => setIsAddModalOpen(true)}
@@ -172,7 +198,9 @@ export function Billing() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Total Revenue</p>
-                <p className="text-3xl font-bold text-green-600">₹{totalRevenue.toFixed(2)}</p>
+                <p className="text-3xl font-bold text-green-600">
+                  ₹{totalRevenue.toFixed(2)}
+                </p>
               </div>
               <div className="p-3 bg-green-100 rounded-full">
                 <Receipt className="h-8 w-8 text-green-600" />
@@ -180,13 +208,15 @@ export function Billing() {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-600">Pending Amount</p>
-                <p className="text-3xl font-bold text-red-600">₹{pendingAmount.toFixed(2)}</p>
+                <p className="text-3xl font-bold text-red-600">
+                  ₹{pendingAmount.toFixed(2)}
+                </p>
               </div>
               <div className="p-3 bg-red-100 rounded-full">
                 <Clock className="h-8 w-8 text-red-600" />
@@ -215,12 +245,12 @@ export function Billing() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               options={[
-                { value: '', label: 'All Statuses' },
-                { value: 'pending', label: 'Pending' },
-                { value: 'paid', label: 'Paid' },
-                { value: 'overdue', label: 'Overdue' },
-                { value: 'partially_paid', label: 'Partially Paid' },
-                { value: 'cancelled', label: 'Cancelled' },
+                { value: "", label: "All Statuses" },
+                { value: "pending", label: "Pending" },
+                { value: "paid", label: "Paid" },
+                { value: "overdue", label: "Overdue" },
+                { value: "partially_paid", label: "Partially Paid" },
+                { value: "cancelled", label: "Cancelled" },
               ]}
             />
           </div>
@@ -230,7 +260,10 @@ export function Billing() {
       {/* Bills List */}
       <div className="space-y-4">
         {filteredBills.map((bill) => (
-          <Card key={bill.id} className="hover:shadow-md transition-shadow duration-200">
+          <Card
+            key={bill.id}
+            className="hover:shadow-md transition-shadow duration-200"
+          >
             <CardContent className="p-6">
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex-1 space-y-2">
@@ -238,35 +271,40 @@ export function Billing() {
                     <h3 className="text-lg font-semibold text-gray-900">
                       {bill.bill_number}
                     </h3>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(bill.status)}`}>
-                      {bill.status.replace('_', ' ').toUpperCase()}
+                    <span
+                      className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                        bill.status
+                      )}`}
+                    >
+                      {bill.status.replace("_", " ").toUpperCase()}
                     </span>
                   </div>
-                  
+
                   <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
                     <div className="flex items-center">
                       <User className="h-4 w-4 mr-1" />
                       {bill.patient?.name}
                     </div>
                     <div className="flex items-center">
-                      <Receipt className="h-4 w-4 mr-1" />
-                      ₹{bill.total_amount.toFixed(2)}
+                      <Receipt className="h-4 w-4 mr-1" />₹
+                      {bill.total_amount.toFixed(2)}
                     </div>
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
-                      {format(new Date(bill.created_at), 'MMM d, yyyy')}
+                      {format(new Date(bill.created_at), "MMM d, yyyy")}
                     </div>
                     {bill.due_date && (
                       <div className="flex items-center">
                         <Clock className="h-4 w-4 mr-1" />
-                        Due: {format(new Date(bill.due_date), 'MMM d, yyyy')}
+                        Due: {format(new Date(bill.due_date), "MMM d, yyyy")}
                       </div>
                     )}
                   </div>
 
                   {bill.payment_mode && bill.payment_date && (
                     <div className="text-sm text-green-600">
-                      Paid via {bill.payment_mode.toUpperCase()} on {format(new Date(bill.payment_date), 'MMM d, yyyy')}
+                      Paid via {bill.payment_mode.toUpperCase()} on{" "}
+                      {format(new Date(bill.payment_date), "MMM d, yyyy")}
                     </div>
                   )}
                 </div>
@@ -276,10 +314,12 @@ export function Billing() {
                     <Eye className="h-4 w-4 mr-1" />
                     View
                   </Button>
-                  {bill.status === 'pending' && (
+                  {bill.status === "pending" && (
                     <Button
                       size="sm"
-                      onClick={() => updatePaymentStatus(bill.id, 'paid', 'cash')}
+                      onClick={() =>
+                        updatePaymentStatus(bill.id, "paid", "cash")
+                      }
                       className="bg-green-600 hover:bg-green-700"
                     >
                       <CreditCard className="h-4 w-4 mr-1" />
@@ -303,9 +343,13 @@ export function Billing() {
             <div className="text-gray-400 mb-4">
               <Receipt className="h-12 w-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No bills found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No bills found
+            </h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm || statusFilter ? 'Try adjusting your search criteria' : 'Get started by generating your first bill'}
+              {searchTerm || statusFilter
+                ? "Try adjusting your search criteria"
+                : "Get started by generating your first bill"}
             </p>
             <Button onClick={() => setIsAddModalOpen(true)}>
               <Receipt className="h-5 w-5 mr-2" />

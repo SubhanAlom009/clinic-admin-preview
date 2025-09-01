@@ -1,19 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Phone, Mail, UserCheck } from 'lucide-react';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/Card';
-import { AddDoctorModal } from '../components/AddDoctorModal';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import { Doctor } from '../types';
-import { format } from 'date-fns';
+import React, { useState, useEffect } from "react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Phone,
+  Mail,
+  UserCheck,
+} from "lucide-react";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  CardTitle,
+} from "../components/ui/Card";
+import { AddDoctorModal } from "../components/AddDoctorModal";
+import { EditDoctorModal } from "../components/EditDoctorModal";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../hooks/useAuth";
+import { Doctor } from "../types";
+import { format } from "date-fns";
 
 export function Doctors() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -22,10 +38,10 @@ export function Doctors() {
 
     const fetchDoctors = async () => {
       const { data } = await supabase
-        .from('doctors')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .from("doctors")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (data) {
         setDoctors(data);
@@ -38,13 +54,13 @@ export function Doctors() {
 
     // Real-time subscription
     const subscription = supabase
-      .channel('doctors')
+      .channel("doctors")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'doctors',
+          event: "*",
+          schema: "public",
+          table: "doctors",
           filter: `user_id=eq.${user.id}`,
         },
         () => {
@@ -59,25 +75,35 @@ export function Doctors() {
   }, [user]);
 
   useEffect(() => {
-    const filtered = doctors.filter(doctor =>
-      doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.contact.includes(searchTerm)
+    const filtered = doctors.filter(
+      (doctor) =>
+        doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doctor.specialization
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        doctor.contact.includes(searchTerm)
     );
     setFilteredDoctors(filtered);
   }, [searchTerm, doctors]);
 
   const deleteDoctor = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this doctor?')) return;
+    if (!confirm("Are you sure you want to delete this doctor?")) return;
 
-    const { error } = await supabase
-      .from('doctors')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from("doctors").delete().eq("id", id);
 
     if (error) {
-      alert('Error deleting doctor: ' + error.message);
+      alert("Error deleting doctor: " + error.message);
     }
+  };
+
+  const handleEditDoctor = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseModals = () => {
+    setSelectedDoctor(null);
+    setIsEditModalOpen(false);
   };
 
   if (loading) {
@@ -131,23 +157,37 @@ export function Doctors() {
       {/* Doctors Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredDoctors.map((doctor) => (
-          <Card key={doctor.id} className="hover:shadow-md transition-shadow duration-200">
+          <Card
+            key={doctor.id}
+            className="hover:shadow-md transition-shadow duration-200"
+          >
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">{doctor.name}</h3>
-                  <p className="text-sm text-blue-600 font-medium">{doctor.specialization}</p>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    {doctor.name}
+                  </h3>
+                  <p className="text-sm text-blue-600 font-medium">
+                    {doctor.specialization}
+                  </p>
                   {doctor.experience_years > 0 && (
-                    <p className="text-sm text-gray-500">{doctor.experience_years} years experience</p>
+                    <p className="text-sm text-gray-500">
+                      {doctor.experience_years} years experience
+                    </p>
                   )}
                 </div>
                 <div className="flex space-x-1">
-                  <button className="p-1 text-gray-400 hover:text-green-600 transition-colors duration-200">
+                  <button
+                    onClick={() => handleEditDoctor(doctor)}
+                    className="p-1 text-gray-400 hover:text-green-600 transition-colors duration-200"
+                    title="Edit Doctor"
+                  >
                     <Edit className="h-4 w-4" />
                   </button>
-                  <button 
+                  <button
                     onClick={() => deleteDoctor(doctor.id)}
                     className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
+                    title="Delete Doctor"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -168,14 +208,18 @@ export function Doctors() {
                 {doctor.consultation_fee > 0 && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-gray-500">Consultation Fee:</span>
-                    <span className="font-semibold text-green-600">₹{doctor.consultation_fee}</span>
+                    <span className="font-semibold text-green-600">
+                      ₹{doctor.consultation_fee}
+                    </span>
                   </div>
                 )}
               </div>
 
               {doctor.qualifications && (
                 <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-600">{doctor.qualifications}</p>
+                  <p className="text-sm text-gray-600">
+                    {doctor.qualifications}
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -189,9 +233,13 @@ export function Doctors() {
             <div className="text-gray-400 mb-4">
               <UserCheck className="h-12 w-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No doctors found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No doctors found
+            </h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm ? 'Try adjusting your search criteria' : 'Get started by adding your first doctor'}
+              {searchTerm
+                ? "Try adjusting your search criteria"
+                : "Get started by adding your first doctor"}
             </p>
             <Button onClick={() => setIsAddModalOpen(true)}>
               <Plus className="h-5 w-5 mr-2" />
@@ -204,6 +252,12 @@ export function Doctors() {
       <AddDoctorModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+      />
+
+      <EditDoctorModal
+        isOpen={isEditModalOpen}
+        onClose={handleCloseModals}
+        doctor={selectedDoctor}
       />
     </div>
   );
