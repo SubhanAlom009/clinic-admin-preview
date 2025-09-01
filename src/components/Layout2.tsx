@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
 import {
   Home,
   Users,
@@ -7,7 +7,6 @@ import {
   Calendar,
   Receipt,
   BarChart3,
-  History,
   Settings,
   LogOut,
   Menu,
@@ -62,53 +61,35 @@ export function Layout() {
       `}
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
-          <div
-            className={`flex items-center ${
-              sidebarCollapsed ? "justify-center" : "space-x-3"
-            }`}
-          >
+          <div className="flex items-center space-x-3">
             <div className="p-2 bg-blue-600 rounded-lg">
               <Activity className="h-6 w-6 text-white" />
             </div>
             {!sidebarCollapsed && (
-              <>
-                <h1 className="text-xl font-bold text-gray-800">ClinicAdmin</h1>
-              </>
+              <h1 className="text-xl font-bold text-gray-800">ClinicAdmin</h1>
             )}
           </div>
-
-          <div className="flex items-center">
-            {/* Desktop collapse button - only show when not collapsed */}
-            {!sidebarCollapsed && (
-              <button
-                onClick={() => setSidebarCollapsed(true)}
-                className="hidden lg:block p-1 rounded-md hover:bg-gray-100 transition-colors duration-200"
-              >
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              className="hidden lg:block p-1 rounded-md hover:bg-gray-100 transition-colors duration-200"
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="h-5 w-5 text-gray-600" />
+              ) : (
                 <ChevronLeft className="h-5 w-5 text-gray-600" />
-              </button>
-            )}
-
-            {/* Mobile close button */}
+              )}
+            </button>
             <button
               onClick={() => setSidebarOpen(false)}
-              className="lg:hidden p-1 rounded-md hover:bg-gray-100 transition-colors duration-200"
+              className="lg:hidden p-1 rounded-md hover:bg-gray-100"
             >
               <X className="h-6 w-6" />
             </button>
           </div>
         </div>
 
-        {/* Floating expand button when collapsed */}
-        {sidebarCollapsed && (
-          <button
-            onClick={() => setSidebarCollapsed(false)}
-            className="hidden lg:block absolute top-4 -right-3 p-1 bg-white border border-gray-200 rounded-full hover:bg-gray-50 transition-colors duration-200 shadow-sm z-10"
-          >
-            <ChevronRight className="h-4 w-4 text-gray-600" />
-          </button>
-        )}
-
-        <nav className="mt-6">
+        <nav className="mt-6 px-2">
           <ul className="space-y-2">
             {navigationItems.map((item) => (
               <li key={item.to}>
@@ -116,7 +97,7 @@ export function Layout() {
                   to={item.to}
                   title={sidebarCollapsed ? item.label : undefined}
                   className={({ isActive }) =>
-                    `flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors duration-200 mx-3 ${
+                    `flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors duration-200 mx-2 ${
                       isActive
                         ? "bg-blue-50 text-blue-700"
                         : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
@@ -125,9 +106,7 @@ export function Layout() {
                   onClick={() => setSidebarOpen(false)}
                 >
                   <item.icon
-                    className={`h-5 w-5 flex-shrink-0 ${
-                      sidebarCollapsed ? "" : "mr-3"
-                    }`}
+                    className={`h-5 w-5 ${sidebarCollapsed ? "" : "mr-3"}`}
                   />
                   {!sidebarCollapsed && item.label}
                 </NavLink>
@@ -136,24 +115,14 @@ export function Layout() {
           </ul>
         </nav>
 
-        <div className="absolute bottom-0 w-full border-t border-gray-200">
+        <div className="absolute bottom-0 w-full p-2 border-t border-gray-200">
           <button
             onClick={handleSignOut}
             title={sidebarCollapsed ? "Sign Out" : undefined}
-            className="flex items-center w-full px-4 py-4 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors duration-200"
+            className="flex items-center w-full px-3 py-3 text-sm font-medium text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200 mx-2"
           >
-            <div
-              className={`flex items-center ${
-                sidebarCollapsed ? "justify-center w-full" : ""
-              }`}
-            >
-              <LogOut
-                className={`h-5 w-5 flex-shrink-0 ${
-                  sidebarCollapsed ? "" : "mr-3"
-                }`}
-              />
-              {!sidebarCollapsed && "Sign Out"}
-            </div>
+            <LogOut className={`h-5 w-5 ${sidebarCollapsed ? "" : "mr-3"}`} />
+            {!sidebarCollapsed && "Sign Out"}
           </button>
         </div>
       </div>
@@ -182,6 +151,15 @@ export function Layout() {
             </div>
 
             <div className="flex items-center space-x-4">
+              {/* Add Home Button */}
+              <Link
+                to="/"
+                className="ml-2 px-3 py-2 rounded-md bg-blue-50 text-blue-700 font-medium hover:bg-blue-100 transition-colors duration-200 flex items-center"
+                title="Go to Home"
+              >
+                <Home className="h-5 w-5 mr-1" />
+                <span className="hidden sm:inline">Go back to Home</span>
+              </Link>
               <button
                 onClick={() => setNotificationOpen(!notificationOpen)}
                 className="relative p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"

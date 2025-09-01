@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { X, Bell, AlertCircle, Calendar, Receipt } from 'lucide-react';
-import { supabase } from '../lib/supabase';
-import { Notification } from '../types';
-import { useAuth } from '../hooks/useAuth';
-import { format } from 'date-fns';
+import React, { useEffect, useState } from "react";
+import { X, Bell, AlertCircle, Calendar, Receipt } from "lucide-react";
+import { supabase } from "../lib/supabase";
+import { Notification } from "../types";
+import { useAuth } from "../hooks/useAuth";
+import { format } from "date-fns";
 
 interface NotificationCenterProps {
   onClose: () => void;
@@ -19,10 +19,10 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
 
     const fetchNotifications = async () => {
       const { data } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
+        .from("notifications")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false })
         .limit(10);
 
       if (data) {
@@ -35,13 +35,13 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
 
     // Real-time subscription
     const subscription = supabase
-      .channel('notifications')
+      .channel("notifications")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
+          event: "*",
+          schema: "public",
+          table: "notifications",
           filter: `user_id=eq.${user.id}`,
         },
         () => {
@@ -57,24 +57,24 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
 
   const markAsRead = async (id: string) => {
     await supabase
-      .from('notifications')
-      .update({ status: 'read' })
-      .eq('id', id);
+      .from("notifications")
+      .update({ status: "read" })
+      .eq("id", id);
 
-    setNotifications(prev =>
-      prev.map(notif =>
-        notif.id === id ? { ...notif, status: 'read' } : notif
+    setNotifications((prev) =>
+      prev.map((notif) =>
+        notif.id === id ? { ...notif, status: "read" } : notif
       )
     );
   };
 
   const getIcon = (type: string) => {
     switch (type) {
-      case 'appointment':
+      case "appointment":
         return Calendar;
-      case 'payment':
+      case "payment":
         return Receipt;
-      case 'followup':
+      case "followup":
         return AlertCircle;
       default:
         return Bell;
@@ -83,17 +83,17 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high':
-        return 'border-l-red-500';
-      case 'normal':
-        return 'border-l-yellow-500';
+      case "high":
+        return "border-l-red-500";
+      case "normal":
+        return "border-l-yellow-500";
       default:
-        return 'border-l-blue-500';
+        return "border-l-blue-500";
     }
   };
 
   return (
-    <div className="absolute top-0 right-0 w-96 bg-white shadow-xl border border-gray-200 rounded-lg mt-16 mr-6 z-50">
+    <div className="absolute -top-16 right-0 w-96 bg-white shadow-xl border border-gray-200 rounded-lg mt-16 mr-6 z-50">
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
         <button
@@ -121,8 +121,10 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
               return (
                 <div
                   key={notification.id}
-                  className={`p-4 border-l-4 ${getPriorityColor(notification.priority)} ${
-                    notification.status === 'unread' ? 'bg-blue-50' : 'bg-white'
+                  className={`p-4 border-l-4 ${getPriorityColor(
+                    notification.priority
+                  )} ${
+                    notification.status === "unread" ? "bg-blue-50" : "bg-white"
                   } hover:bg-gray-50 transition-colors duration-200 cursor-pointer`}
                   onClick={() => markAsRead(notification.id)}
                 >
@@ -136,10 +138,13 @@ export function NotificationCenter({ onClose }: NotificationCenterProps) {
                         {notification.message}
                       </p>
                       <p className="text-xs text-gray-400 mt-2">
-                        {format(new Date(notification.created_at), 'MMM d, yyyy h:mm a')}
+                        {format(
+                          new Date(notification.created_at),
+                          "MMM d, yyyy h:mm a"
+                        )}
                       </p>
                     </div>
-                    {notification.status === 'unread' && (
+                    {notification.status === "unread" && (
                       <div className="h-2 w-2 bg-blue-600 rounded-full"></div>
                     )}
                   </div>

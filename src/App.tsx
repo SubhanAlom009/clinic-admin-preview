@@ -1,17 +1,23 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Layout } from './components/Layout';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { Auth } from './pages/Auth';
-import { Landing } from './pages/Landing';
-import { Dashboard } from './pages/Dashboard';
-import { Patients } from './pages/Patients';
-import { Doctors } from './pages/Doctors';
-import { Appointments } from './pages/Appointments';
-import { Billing } from './pages/Billing';
-import { Reports } from './pages/Reports';
-import { Settings } from './pages/Settings';
+import React from "react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Layout } from "./components/Layout";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { Auth } from "./pages/Auth";
+import { Landing } from "./pages/Landing";
+import { Dashboard } from "./pages/Dashboard";
+import { Patients } from "./pages/Patients";
+import { Doctors } from "./pages/Doctors";
+import { Appointments } from "./pages/Appointments";
+import { Billing } from "./pages/Billing";
+import { Reports } from "./pages/Reports";
+import { Settings } from "./pages/Settings";
+import { History } from "./pages/History";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -43,6 +49,7 @@ function App() {
             <Route path="appointments" element={<Appointments />} />
             <Route path="billing" element={<Billing />} />
             <Route path="reports" element={<Reports />} />
+            <Route path="history" element={<History />} />
             <Route path="settings" element={<Settings />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>

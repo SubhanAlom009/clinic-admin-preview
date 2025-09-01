@@ -152,9 +152,7 @@ export function Landing() {
                     <User className="h-5 w-5" />
                     <div className="text-sm">
                       <div className="font-medium">
-                        {profile?.admin_name ||
-                          profile?.name ||
-                          "Welcome back!"}
+                        {profile?.admin_name || profile?.name || "Loading..."}
                       </div>
                       {profile?.clinic_name && (
                         <div className="text-xs text-gray-500">
