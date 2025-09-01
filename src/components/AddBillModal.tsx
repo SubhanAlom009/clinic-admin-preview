@@ -22,8 +22,7 @@ export function AddBillModal({
     amount: "",
     tax_amount: "",
     due_date: "",
-    description: "",
-    notes: "",
+    notes: "", // REMOVED service_description, only use notes
   });
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(false);
@@ -34,13 +33,20 @@ export function AddBillModal({
     if (!user || !isOpen) return;
 
     const fetchPatients = async () => {
-      const { data } = await supabase
+      console.log("Fetching patients for user:", user.id);
+
+      const { data, error } = await supabase
         .from("patients")
         .select("*")
-        .eq("clinic_id", user.id)
+        .eq("user_id", user.id)
         .order("name");
 
-      if (data) setPatients(data);
+      if (error) {
+        console.error("Error fetching patients:", error);
+      } else {
+        console.log("Patients fetched:", data);
+        setPatients(data || []);
+      }
     };
 
     fetchPatients();
@@ -69,19 +75,20 @@ export function AddBillModal({
       const taxAmount = parseFloat(formData.tax_amount) || 0;
       const totalAmount = amount + taxAmount;
 
+      // FIXED: Only use columns that actually exist in the database
       const billData = {
-        clinic_id: user.id,
+        user_id: user.id,
         patient_id: formData.patient_id,
         bill_number: generateBillNumber(),
         amount,
         tax_amount: taxAmount,
         total_amount: totalAmount,
         due_date: formData.due_date || null,
-        description: formData.description || null,
-        notes: formData.notes || null,
+        notes: formData.notes || null, // Only use notes field
         status: "pending",
-        created_at: new Date().toISOString(),
       };
+
+      console.log("Creating bill with data:", billData);
 
       const { data: billResult, error } = await supabase
         .from("bills")
@@ -89,12 +96,17 @@ export function AddBillModal({
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Bill creation error:", error);
+        throw error;
+      }
+
+      console.log("Bill created successfully:", billResult);
 
       // Create notification
       const patient = patients.find((p) => p.id === formData.patient_id);
       await supabase.from("notifications").insert({
-        clinic_id: user.id,
+        user_id: user.id,
         type: "payment",
         title: "Bill Generated",
         message: `Bill generated for ${patient?.name} - ₹${totalAmount.toFixed(
@@ -110,10 +122,10 @@ export function AddBillModal({
         amount: "",
         tax_amount: "",
         due_date: "",
-        description: "",
         notes: "",
       });
     } catch (err: any) {
+      console.error("Error in handleSubmit:", err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -165,10 +177,15 @@ export function AddBillModal({
                 <option value="">Select a patient</option>
                 {patients.map((patient) => (
                   <option key={patient.id} value={patient.id}>
-                    {patient.name} - {patient.phone}
+                    {patient.name} - {patient.contact}
                   </option>
                 ))}
               </select>
+              {patients.length === 0 && (
+                <p className="text-sm text-gray-500 mt-1">
+                  No patients found. Make sure you have added patients first.
+                </p>
+              )}
             </div>
 
             <div>
@@ -219,20 +236,6 @@ export function AddBillModal({
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Service Description
-            </label>
-            <input
-              type="text"
-              name="description"
-              value={formData.description}
-              onChange={handleInputChange}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="e.g., Consultation, X-Ray, Blood Test"
-            />
-          </div>
-
           {totalAmount > 0 && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
               <div className="flex justify-between items-center">
@@ -255,7 +258,7 @@ export function AddBillModal({
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes
+              Notes / Service Description
             </label>
             <textarea
               name="notes"
@@ -263,7 +266,7 @@ export function AddBillModal({
               onChange={handleInputChange}
               rows={3}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Add any additional notes for the bill"
+              placeholder="Add notes or service description (e.g., Consultation, X-Ray, Blood Test)"
             />
           </div>
 

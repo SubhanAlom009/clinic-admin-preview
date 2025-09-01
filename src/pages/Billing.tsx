@@ -20,6 +20,8 @@ import {
   CardTitle,
 } from "../components/ui/Card";
 import { AddBillModal } from "../components/AddBillModal";
+import { BillViewModal } from "../components/ViewBillModal"; // ADD THIS IMPORT
+import { downloadBillAsHTML } from "../utils/downloadUtil"; // ADD THIS IMPORT
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { Bill } from "../types";
@@ -32,13 +34,15 @@ export function Billing() {
   const [statusFilter, setStatusFilter] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
     if (!user) return;
 
     const fetchBills = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("bills")
         .select(
           `
@@ -49,7 +53,12 @@ export function Billing() {
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
+      if (error) {
+        console.error("Error fetching bills:", error);
+      }
+
       if (data) {
+        console.log("Bills fetched:", data.length);
         setBills(data);
         setFilteredBills(data);
       }
@@ -70,6 +79,7 @@ export function Billing() {
           filter: `user_id=eq.${user.id}`,
         },
         () => {
+          console.log("Bills table changed, refetching...");
           fetchBills();
         }
       )
@@ -97,6 +107,16 @@ export function Billing() {
 
     setFilteredBills(filtered);
   }, [searchTerm, statusFilter, bills]);
+
+  const handleViewBill = (bill: Bill) => {
+    console.log("Viewing bill:", bill.bill_number);
+    setSelectedBill(bill);
+    setIsViewModalOpen(true);
+  };
+
+  const handleDownloadBill = (bill: Bill) => {
+    downloadBillAsHTML(bill);
+  };
 
   const updatePaymentStatus = async (
     id: string,
@@ -310,7 +330,11 @@ export function Billing() {
                 </div>
 
                 <div className="flex space-x-2 mt-4 lg:mt-0">
-                  <Button size="sm" variant="outline">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleViewBill(bill)}
+                  >
                     <Eye className="h-4 w-4 mr-1" />
                     View
                   </Button>
@@ -326,7 +350,11 @@ export function Billing() {
                       Mark Paid
                     </Button>
                   )}
-                  <Button size="sm" variant="outline">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleDownloadBill(bill)}
+                  >
                     <Download className="h-4 w-4 mr-1" />
                     Download
                   </Button>
@@ -337,6 +365,7 @@ export function Billing() {
         ))}
       </div>
 
+      {/* No Bills Found Section */}
       {filteredBills.length === 0 && !loading && (
         <Card>
           <CardContent className="py-12 text-center">
@@ -359,10 +388,24 @@ export function Billing() {
         </Card>
       )}
 
+      {/* Modals */}
       <AddBillModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
       />
+
+      {/* View Modal */}
+      {isViewModalOpen && selectedBill && (
+        <BillViewModal
+          bill={selectedBill}
+          isOpen={isViewModalOpen}
+          onClose={() => {
+            setIsViewModalOpen(false);
+            setSelectedBill(null);
+          }}
+          onDownload={handleDownloadBill}
+        />
+      )}
     </div>
   );
 }

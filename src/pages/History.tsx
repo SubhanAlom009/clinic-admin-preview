@@ -9,6 +9,7 @@ import {
   Filter,
   Eye,
   FileText,
+  X,
 } from "lucide-react";
 import {
   Card,
@@ -26,7 +27,7 @@ import { format } from "date-fns";
 
 interface HistoryRecord {
   id: string;
-  type: "appointment" | "payment" | "treatment" | "system";
+  type: "appointment" | "payment" | "system";
   title: string;
   description: string;
   date: string;
@@ -44,6 +45,10 @@ export function History() {
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [loading, setLoading] = useState(true);
+  const [selectedRecord, setSelectedRecord] = useState<HistoryRecord | null>(
+    null
+  );
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -71,19 +76,6 @@ export function History() {
             `
             *,
             patient:patients(*)
-          `
-          )
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false });
-
-        // Fetch followups with patient info
-        const { data: followups } = await supabase
-          .from("followups")
-          .select(
-            `
-            *,
-            patient:patients(*),
-            appointment:appointments(*)
           `
           )
           .eq("user_id", user.id)
@@ -136,24 +128,6 @@ export function History() {
           });
         });
 
-        // Add followup records
-        followups?.forEach((followup) => {
-          records.push({
-            id: followup.id,
-            type: "treatment",
-            title: `Follow-up for ${followup.patient?.name}`,
-            description: `Follow-up appointment scheduled`,
-            date: followup.created_at,
-            patient: followup.patient,
-            status: followup.status,
-            details: {
-              dueDate: followup.due_date,
-              notes: followup.notes,
-              appointmentId: followup.appointment_id,
-            },
-          });
-        });
-
         // Sort all records by date (newest first)
         records.sort(
           (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -197,14 +171,17 @@ export function History() {
     setFilteredRecords(filtered);
   }, [activeTab, searchTerm, typeFilter, historyRecords]);
 
+  const handleViewDetails = (record: HistoryRecord) => {
+    setSelectedRecord(record);
+    setShowDetailsModal(true);
+  };
+
   const getRecordIcon = (type: string) => {
     switch (type) {
       case "appointment":
         return Calendar;
       case "payment":
         return Receipt;
-      case "treatment":
-        return FileText;
       case "system":
         return Activity;
       default:
@@ -235,7 +212,6 @@ export function History() {
     { id: "all", label: "All Records", icon: HistoryIcon },
     { id: "appointment", label: "Appointments", icon: Calendar },
     { id: "payment", label: "Payments", icon: Receipt },
-    { id: "treatment", label: "Treatments", icon: FileText },
   ];
 
   if (loading) {
@@ -244,7 +220,7 @@ export function History() {
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-gray-200 rounded w-1/4"></div>
           <div className="flex space-x-4">
-            {[...Array(4)].map((_, i) => (
+            {[...Array(3)].map((_, i) => (
               <div key={i} className="h-10 bg-gray-200 rounded w-24"></div>
             ))}
           </div>
@@ -314,7 +290,6 @@ export function History() {
                 { value: "", label: "All Types" },
                 { value: "appointment", label: "Appointments" },
                 { value: "payment", label: "Payments" },
-                { value: "treatment", label: "Treatments" },
                 { value: "system", label: "System" },
               ]}
             />
@@ -341,8 +316,6 @@ export function History() {
                           ? "bg-blue-100"
                           : record.type === "payment"
                           ? "bg-green-100"
-                          : record.type === "treatment"
-                          ? "bg-purple-100"
                           : "bg-gray-100"
                       }`}
                     >
@@ -352,8 +325,6 @@ export function History() {
                             ? "text-blue-600"
                             : record.type === "payment"
                             ? "text-green-600"
-                            : record.type === "treatment"
-                            ? "text-purple-600"
                             : "text-gray-600"
                         }`}
                       />
@@ -407,152 +378,14 @@ export function History() {
                             </div>
                           )}
                         </div>
-
-                        {/* Detailed Information */}
-                        {record.details && (
-                          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                            {record.type === "appointment" && (
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                {record.details.symptoms && (
-                                  <div>
-                                    <span className="font-medium text-gray-700">
-                                      Symptoms:
-                                    </span>
-                                    <p className="text-gray-600 mt-1">
-                                      {record.details.symptoms}
-                                    </p>
-                                  </div>
-                                )}
-                                {record.details.diagnosis && (
-                                  <div>
-                                    <span className="font-medium text-gray-700">
-                                      Diagnosis:
-                                    </span>
-                                    <p className="text-gray-600 mt-1">
-                                      {record.details.diagnosis}
-                                    </p>
-                                  </div>
-                                )}
-                                {record.details.prescription && (
-                                  <div className="md:col-span-2">
-                                    <span className="font-medium text-gray-700">
-                                      Prescription:
-                                    </span>
-                                    <p className="text-gray-600 mt-1">
-                                      {record.details.prescription}
-                                    </p>
-                                  </div>
-                                )}
-                                {record.details.notes && (
-                                  <div className="md:col-span-2">
-                                    <span className="font-medium text-gray-700">
-                                      Notes:
-                                    </span>
-                                    <p className="text-gray-600 mt-1">
-                                      {record.details.notes}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {record.type === "payment" && (
-                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                <div>
-                                  <span className="font-medium text-gray-700">
-                                    Bill Number:
-                                  </span>
-                                  <p className="text-gray-600 mt-1">
-                                    {record.details.billNumber}
-                                  </p>
-                                </div>
-                                <div>
-                                  <span className="font-medium text-gray-700">
-                                    Amount:
-                                  </span>
-                                  <p className="text-gray-600 mt-1">
-                                    ₹{record.details.amount}
-                                  </p>
-                                </div>
-                                {record.details.taxAmount > 0 && (
-                                  <div>
-                                    <span className="font-medium text-gray-700">
-                                      Tax:
-                                    </span>
-                                    <p className="text-gray-600 mt-1">
-                                      ₹{record.details.taxAmount}
-                                    </p>
-                                  </div>
-                                )}
-                                {record.details.paymentMode && (
-                                  <div>
-                                    <span className="font-medium text-gray-700">
-                                      Payment Mode:
-                                    </span>
-                                    <p className="text-gray-600 mt-1">
-                                      {record.details.paymentMode.toUpperCase()}
-                                    </p>
-                                  </div>
-                                )}
-                                {record.details.paymentDate && (
-                                  <div>
-                                    <span className="font-medium text-gray-700">
-                                      Payment Date:
-                                    </span>
-                                    <p className="text-gray-600 mt-1">
-                                      {format(
-                                        new Date(record.details.paymentDate),
-                                        "MMM d, yyyy"
-                                      )}
-                                    </p>
-                                  </div>
-                                )}
-                                {record.details.notes && (
-                                  <div className="md:col-span-3">
-                                    <span className="font-medium text-gray-700">
-                                      Notes:
-                                    </span>
-                                    <p className="text-gray-600 mt-1">
-                                      {record.details.notes}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {record.type === "treatment" && (
-                              <div className="text-sm">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div>
-                                    <span className="font-medium text-gray-700">
-                                      Due Date:
-                                    </span>
-                                    <p className="text-gray-600 mt-1">
-                                      {format(
-                                        new Date(record.details.dueDate),
-                                        "MMM d, yyyy"
-                                      )}
-                                    </p>
-                                  </div>
-                                  {record.details.notes && (
-                                    <div>
-                                      <span className="font-medium text-gray-700">
-                                        Notes:
-                                      </span>
-                                      <p className="text-gray-600 mt-1">
-                                        {record.details.notes}
-                                      </p>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
                       </div>
 
                       <div className="flex space-x-2 mt-4 lg:mt-0">
-                        <Button size="sm" variant="outline">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewDetails(record)}
+                        >
                           <Eye className="h-4 w-4 mr-1" />
                           View Details
                         </Button>
@@ -565,6 +398,211 @@ export function History() {
           );
         })}
       </div>
+
+      {/* Details Modal */}
+      {showDetailsModal && selectedRecord && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h2 className="text-2xl font-semibold">Record Details</h2>
+              <button
+                onClick={() => setShowDetailsModal(false)}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-6">
+              <div className="mb-6">
+                <h3 className="text-xl font-semibold mb-2">
+                  {selectedRecord.title}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {selectedRecord.description}
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div>
+                    <span className="text-sm font-medium text-gray-500">
+                      Date & Time
+                    </span>
+                    <p className="text-gray-900">
+                      {format(
+                        new Date(selectedRecord.date),
+                        "MMMM d, yyyy h:mm a"
+                      )}
+                    </p>
+                  </div>
+                  {selectedRecord.patient && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">
+                        Patient
+                      </span>
+                      <p className="text-gray-900">
+                        {selectedRecord.patient.name}
+                      </p>
+                    </div>
+                  )}
+                  {selectedRecord.status && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">
+                        Status
+                      </span>
+                      <span
+                        className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                          selectedRecord.status
+                        )}`}
+                      >
+                        {selectedRecord.status.replace("_", " ").toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Detailed Information */}
+              {selectedRecord.details && (
+                <div className="bg-gray-50 rounded-lg p-6">
+                  <h4 className="font-semibold text-gray-900 mb-4">
+                    Detailed Information
+                  </h4>
+
+                  {selectedRecord.type === "appointment" && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {selectedRecord.details.symptoms && (
+                        <div>
+                          <span className="font-medium text-gray-700">
+                            Symptoms
+                          </span>
+                          <p className="text-gray-600 mt-1">
+                            {selectedRecord.details.symptoms}
+                          </p>
+                        </div>
+                      )}
+                      {selectedRecord.details.diagnosis && (
+                        <div>
+                          <span className="font-medium text-gray-700">
+                            Diagnosis
+                          </span>
+                          <p className="text-gray-600 mt-1">
+                            {selectedRecord.details.diagnosis}
+                          </p>
+                        </div>
+                      )}
+                      {selectedRecord.details.prescription && (
+                        <div className="md:col-span-2">
+                          <span className="font-medium text-gray-700">
+                            Prescription
+                          </span>
+                          <p className="text-gray-600 mt-1">
+                            {selectedRecord.details.prescription}
+                          </p>
+                        </div>
+                      )}
+                      {selectedRecord.details.notes && (
+                        <div className="md:col-span-2">
+                          <span className="font-medium text-gray-700">
+                            Notes
+                          </span>
+                          <p className="text-gray-600 mt-1">
+                            {selectedRecord.details.notes}
+                          </p>
+                        </div>
+                      )}
+                      {selectedRecord.details.duration && (
+                        <div>
+                          <span className="font-medium text-gray-700">
+                            Duration
+                          </span>
+                          <p className="text-gray-600 mt-1">
+                            {selectedRecord.details.duration} minutes
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedRecord.type === "payment" && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div>
+                        <span className="font-medium text-gray-700">
+                          Bill Number
+                        </span>
+                        <p className="text-gray-600 mt-1">
+                          {selectedRecord.details.billNumber}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-gray-700">
+                          Amount
+                        </span>
+                        <p className="text-gray-600 mt-1">
+                          ₹{selectedRecord.details.amount}
+                        </p>
+                      </div>
+                      {selectedRecord.details.taxAmount > 0 && (
+                        <div>
+                          <span className="font-medium text-gray-700">Tax</span>
+                          <p className="text-gray-600 mt-1">
+                            ₹{selectedRecord.details.taxAmount}
+                          </p>
+                        </div>
+                      )}
+                      {selectedRecord.details.paymentMode && (
+                        <div>
+                          <span className="font-medium text-gray-700">
+                            Payment Mode
+                          </span>
+                          <p className="text-gray-600 mt-1">
+                            {selectedRecord.details.paymentMode.toUpperCase()}
+                          </p>
+                        </div>
+                      )}
+                      {selectedRecord.details.paymentDate && (
+                        <div>
+                          <span className="font-medium text-gray-700">
+                            Payment Date
+                          </span>
+                          <p className="text-gray-600 mt-1">
+                            {format(
+                              new Date(selectedRecord.details.paymentDate),
+                              "MMM d, yyyy"
+                            )}
+                          </p>
+                        </div>
+                      )}
+                      {selectedRecord.details.dueDate && (
+                        <div>
+                          <span className="font-medium text-gray-700">
+                            Due Date
+                          </span>
+                          <p className="text-gray-600 mt-1">
+                            {format(
+                              new Date(selectedRecord.details.dueDate),
+                              "MMM d, yyyy"
+                            )}
+                          </p>
+                        </div>
+                      )}
+                      {selectedRecord.details.notes && (
+                        <div className="md:col-span-3">
+                          <span className="font-medium text-gray-700">
+                            Notes
+                          </span>
+                          <p className="text-gray-600 mt-1">
+                            {selectedRecord.details.notes}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {filteredRecords.length === 0 && !loading && (
         <Card>
