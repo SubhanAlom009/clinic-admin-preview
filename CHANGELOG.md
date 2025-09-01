@@ -38,6 +38,8 @@
 - Added export functionality to Reports page - generates professional HTML reports with all analytics data.
 - Resolved multiple database schema cache errors by aligning code with actual database structure.
 - Enhanced bill management with proper status tracking (pending, paid, overdue) and payment mode recording.
+- Fixeed the notification allignment issue in the notification center.
+- Improved overall UI of `Notifications` panel for better user experience and responsiveness.
 
 
 ----------

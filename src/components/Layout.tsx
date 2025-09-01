@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
   Home,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { NotificationCenter } from "./NotificationCenter";
+import { supabase } from "../lib/supabase";
 
 const navigationItems = [
   { to: "/admin/dashboard", icon: Home, label: "Dashboard" },
@@ -35,8 +36,84 @@ export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
-  const { signOut } = useAuth();
+  const [unreadCount, setUnreadCount] = useState(0); // ADDED: Track unread notifications
+  const { signOut, user } = useAuth();
   const navigate = useNavigate();
+
+  // ADDED: Fetch unread notification count
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("read", false);
+
+        if (error) {
+          console.error("Error fetching unread count:", error);
+        } else {
+          console.log("Unread notifications count:", count);
+          setUnreadCount(count || 0);
+        }
+      } catch (error) {
+        console.error("Error in fetchUnreadCount:", error);
+      }
+    };
+
+    fetchUnreadCount();
+
+    // ADDED: Real-time subscription for notifications
+    const subscription = supabase
+      .channel("notification-updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notifications",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          console.log("Notifications updated, refetching unread count...");
+          fetchUnreadCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [user]);
+
+  // ADDED: Function to handle notification updates
+  const handleNotificationUpdate = () => {
+    if (!user) return;
+
+    // Refetch unread count when notifications are updated
+    const fetchUnreadCount = async () => {
+      try {
+        const { count, error } = await supabase
+          .from("notifications")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id)
+          .eq("read", false);
+
+        if (error) {
+          console.error("Error fetching unread count:", error);
+        } else {
+          console.log("Updated unread notifications count:", count);
+          setUnreadCount(count || 0);
+        }
+      } catch (error) {
+        console.error("Error in handleNotificationUpdate:", error);
+      }
+    };
+
+    fetchUnreadCount();
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -187,7 +264,16 @@ export function Layout() {
                 className="relative p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
               >
                 <Bell className="h-6 w-6 text-gray-600" />
-                <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full"></span>
+                {/* FIXED: Only show red dot when there are unread notifications */}
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 h-2 w-2 bg-red-500 rounded-full animate-pulse"></span>
+                )}
+                {/* OPTIONAL: Show unread count badge */}
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -198,7 +284,10 @@ export function Layout() {
           <div className="relative">
             <Outlet />
             {notificationOpen && (
-              <NotificationCenter onClose={() => setNotificationOpen(false)} />
+              <NotificationCenter
+                onClose={() => setNotificationOpen(false)}
+                onNotificationUpdate={handleNotificationUpdate} // ADDED: Pass update handler
+              />
             )}
           </div>
         </main>
