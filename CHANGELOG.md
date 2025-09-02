@@ -40,6 +40,7 @@
 - Enhanced bill management with proper status tracking (pending, paid, overdue) and payment mode recording.
 - Fixeed the notification allignment issue in the notification center.
 - Improved overall UI of `Notifications` panel for better user experience and responsiveness.
+- Replaced the `Activity` icon with `ArrowLeftCircle` icon for better visual representation of "Go to homepage" action.
 
 
 ----------
