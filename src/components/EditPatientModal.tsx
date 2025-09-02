@@ -1,17 +1,23 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Modal } from "./ui/Modal";
 import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Button } from "./ui/Button";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
+import { Patient } from "../types";
 
-interface AddPatientModalProps {
+interface EditPatientModalProps {
   isOpen: boolean;
   onClose: () => void;
+  patient: Patient | null;
 }
 
-export function AddPatientModal({ isOpen, onClose }: AddPatientModalProps) {
+export function EditPatientModal({
+  isOpen,
+  onClose,
+  patient,
+}: EditPatientModalProps) {
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -26,9 +32,26 @@ export function AddPatientModal({ isOpen, onClose }: AddPatientModalProps) {
   const [error, setError] = useState("");
   const { user } = useAuth();
 
+  useEffect(() => {
+    if (patient) {
+      setFormData({
+        name: patient.name,
+        age: patient.age?.toString() || "",
+        gender: patient.gender || "",
+        contact: patient.contact,
+        email: patient.email || "",
+        address: patient.address || "",
+        emergency_contact: patient.emergency_contact || "",
+        medical_history: patient.medical_history
+          ? JSON.stringify(patient.medical_history, null, 2)
+          : "",
+      });
+    }
+  }, [patient]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user) return;
+    if (!user || !patient) return;
 
     setLoading(true);
     setError("");
@@ -43,17 +66,20 @@ export function AddPatientModal({ isOpen, onClose }: AddPatientModalProps) {
         }
       }
 
-      const { error } = await supabase.from("patients").insert({
-        user_id: user.id,
-        name: formData.name,
-        age: formData.age ? parseInt(formData.age) : null,
-        gender: formData.gender || null,
-        contact: formData.contact,
-        email: formData.email || null,
-        address: formData.address || null,
-        emergency_contact: formData.emergency_contact || null,
-        medical_history: medicalHistory,
-      });
+      const { error } = await supabase
+        .from("patients")
+        .update({
+          name: formData.name,
+          age: formData.age ? parseInt(formData.age) : null,
+          gender: formData.gender || null,
+          contact: formData.contact,
+          email: formData.email || null,
+          address: formData.address || null,
+          emergency_contact: formData.emergency_contact || null,
+          medical_history: medicalHistory,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", patient.id);
 
       if (error) throw error;
 
@@ -61,22 +87,12 @@ export function AddPatientModal({ isOpen, onClose }: AddPatientModalProps) {
       await supabase.from("notifications").insert({
         user_id: user.id,
         type: "system",
-        title: "Patient Added",
-        message: `New patient ${formData.name} has been added successfully.`,
+        title: "Patient Updated",
+        message: `Patient ${formData.name} has been updated successfully.`,
         priority: "normal",
       });
 
       onClose();
-      setFormData({
-        name: "",
-        age: "",
-        gender: "",
-        contact: "",
-        email: "",
-        address: "",
-        emergency_contact: "",
-        medical_history: "",
-      });
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -85,7 +101,9 @@ export function AddPatientModal({ isOpen, onClose }: AddPatientModalProps) {
   };
 
   const handleInputChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
   ) => {
     setFormData({
       ...formData,
@@ -94,7 +112,7 @@ export function AddPatientModal({ isOpen, onClose }: AddPatientModalProps) {
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add New Patient" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title="Edit Patient" size="lg">
       <form onSubmit={handleSubmit} className="p-6 space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
@@ -169,10 +187,10 @@ export function AddPatientModal({ isOpen, onClose }: AddPatientModalProps) {
             onChange={handleInputChange}
             rows={4}
             className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Enter medical history, allergies, chronic conditions, etc."
+            placeholder="Enter medical history (JSON format or plain text)"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Enter any relevant medical history, allergies, or chronic conditions
+            You can enter plain text or JSON format for structured data
           </p>
         </div>
 
@@ -187,7 +205,7 @@ export function AddPatientModal({ isOpen, onClose }: AddPatientModalProps) {
             Cancel
           </Button>
           <Button type="submit" disabled={loading}>
-            {loading ? "Adding..." : "Add Patient"}
+            {loading ? "Updating..." : "Update Patient"}
           </Button>
         </div>
       </form>

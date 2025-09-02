@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "../components/ui/Card";
 import { AddPatientModal } from "../components/AddPatientModal";
+import { ViewPatientModal } from "../components/ViewPatientModal";
+import { EditPatientModal } from "../components/EditPatientModal";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { Patient } from "../types";
@@ -19,6 +21,9 @@ export function Patients() {
   const [filteredPatients, setFilteredPatients] = useState<Patient[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -82,6 +87,22 @@ export function Patients() {
     if (error) {
       alert("Error deleting patient: " + error.message);
     }
+  };
+
+  const handleViewPatient = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setIsViewModalOpen(true);
+  };
+
+  const handleEditPatient = (patient: Patient) => {
+    setSelectedPatient(patient);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseModals = () => {
+    setSelectedPatient(null);
+    setIsViewModalOpen(false);
+    setIsEditModalOpen(false);
   };
 
   if (loading) {
@@ -151,15 +172,24 @@ export function Patients() {
                   </p>
                 </div>
                 <div className="flex space-x-1">
-                  <button className="p-1 text-gray-400 hover:text-blue-600 transition-colors duration-200">
+                  <button
+                    onClick={() => handleViewPatient(patient)}
+                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors duration-200"
+                    title="View Patient Details"
+                  >
                     <Eye className="h-4 w-4" />
                   </button>
-                  <button className="p-1 text-gray-400 hover:text-green-600 transition-colors duration-200">
+                  <button
+                    onClick={() => handleEditPatient(patient)}
+                    className="p-1 text-gray-400 hover:text-green-600 transition-colors duration-200"
+                    title="Edit Patient"
+                  >
                     <Edit className="h-4 w-4" />
                   </button>
                   <button
                     onClick={() => deletePatient(patient.id)}
                     className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
+                    title="Delete Patient"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -214,6 +244,18 @@ export function Patients() {
       <AddPatientModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+      />
+
+      <ViewPatientModal
+        isOpen={isViewModalOpen}
+        onClose={handleCloseModals}
+        patient={selectedPatient}
+      />
+
+      <EditPatientModal
+        isOpen={isEditModalOpen}
+        onClose={handleCloseModals}
+        patient={selectedPatient}
       />
     </div>
   );

@@ -3,7 +3,7 @@ export interface Patient {
   user_id: string;
   name: string;
   age: number | null;
-  gender: 'Male' | 'Female' | 'Other' | null;
+  gender: "Male" | "Female" | "Other" | null;
   contact: string;
   email: string | null;
   address: string | null;
@@ -35,7 +35,7 @@ export interface Appointment {
   doctor_id: string;
   appointment_datetime: string;
   duration_minutes: number;
-  status: 'scheduled' | 'completed' | 'cancelled' | 'no_show' | 'rescheduled';
+  status: "scheduled" | "completed" | "cancelled" | "no_show" | "rescheduled";
   notes: string | null;
   symptoms: string | null;
   diagnosis: string | null;
@@ -55,8 +55,8 @@ export interface Bill {
   amount: number;
   tax_amount: number;
   total_amount: number;
-  status: 'pending' | 'paid' | 'partially_paid' | 'overdue' | 'cancelled';
-  payment_mode: 'cash' | 'card' | 'upi' | 'insurance' | 'cheque' | null;
+  status: "pending" | "paid" | "partially_paid" | "overdue" | "cancelled";
+  payment_mode: "cash" | "card" | "upi" | "insurance" | "cheque" | null;
   payment_date: string | null;
   due_date: string | null;
   notes: string | null;
@@ -72,7 +72,7 @@ export interface Followup {
   appointment_id: string;
   due_date: string;
   notes: string | null;
-  status: 'pending' | 'completed' | 'cancelled';
+  status: "pending" | "completed" | "cancelled";
   created_at: string;
   updated_at: string;
   patient?: Patient;
@@ -82,11 +82,11 @@ export interface Followup {
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'appointment' | 'payment' | 'followup' | 'system';
+  type: "appointment" | "payment" | "followup" | "system";
   title: string;
   message: string;
-  status: 'unread' | 'read';
-  priority: 'low' | 'normal' | 'high';
+  status: "unread" | "read";
+  priority: "low" | "normal" | "high";
   created_at: string;
 }
 

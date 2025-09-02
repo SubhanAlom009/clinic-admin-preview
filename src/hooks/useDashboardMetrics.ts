@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '../lib/supabase';
-import { useAuth } from './useAuth';
-import { DashboardMetrics } from '../types';
-import { format, startOfDay, endOfDay } from 'date-fns';
+import { useEffect, useState } from "react";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "./useAuth";
+import { DashboardMetrics } from "../types";
+import { format } from "date-fns";
 
 export function useDashboardMetrics() {
   const [metrics, setMetrics] = useState<DashboardMetrics>({
@@ -21,53 +21,94 @@ export function useDashboardMetrics() {
     const fetchMetrics = async () => {
       try {
         const today = new Date();
-        const todayStart = startOfDay(today);
-        const todayEnd = endOfDay(today);
+        const todayDateString = format(today, "yyyy-MM-dd");
 
-        // Fetch all metrics in parallel
+        console.log("Dashboard: Fetching metrics for user:", user.id);
+        console.log("Dashboard: Today's date:", todayDateString);
+
+        // Fetch all data in parallel
         const [
           patientsResult,
           doctorsResult,
-          todayAppointmentsResult,
-          pendingBillsResult,
-          overdueFollowupsResult,
+          allAppointmentsResult,
+          billsResult,
+          followupsResult,
         ] = await Promise.all([
           supabase
-            .from('patients')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id),
+            .from("patients")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id),
+
           supabase
-            .from('doctors')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id),
+            .from("doctors")
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id),
+
+          // FIXED: Get ALL appointments and filter manually
+          supabase.from("appointments").select("*").eq("user_id", user.id),
+
           supabase
-            .from('appointments')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .gte('appointment_datetime', todayStart.toISOString())
-            .lte('appointment_datetime', todayEnd.toISOString()),
+            .from("bills")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("status", "pending"),
+
           supabase
-            .from('bills')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .eq('status', 'pending'),
-          supabase
-            .from('followups')
-            .select('id', { count: 'exact', head: true })
-            .eq('user_id', user.id)
-            .eq('status', 'pending')
-            .lt('due_date', format(today, 'yyyy-MM-dd')),
+            .from("followups")
+            .select("*")
+            .eq("user_id", user.id)
+            .eq("status", "pending")
+            .lt("due_date", todayDateString),
         ]);
 
-        setMetrics({
+        console.log("Dashboard: Raw results:", {
+          patients: patientsResult.count,
+          doctors: doctorsResult.count,
+          allAppointments: allAppointmentsResult.data?.length,
+          bills: billsResult.data?.length,
+          followups: followupsResult.data?.length,
+        });
+
+        // FIXED: Filter today's appointments in JavaScript
+        const todayAppointments =
+          allAppointmentsResult.data?.filter((appointment) => {
+            const appointmentDate = format(
+              new Date(appointment.appointment_datetime),
+              "yyyy-MM-dd"
+            );
+            const isToday = appointmentDate === todayDateString;
+
+            if (isToday) {
+              console.log(`Dashboard: Today's appointment found:`, {
+                id: appointment.id,
+                datetime: appointment.appointment_datetime,
+                appointmentDate,
+                todayDate: todayDateString,
+                patient_id: appointment.patient_id,
+                status: appointment.status,
+              });
+            }
+
+            return isToday;
+          }) || [];
+
+        console.log(
+          "Dashboard: Today's appointments filtered:",
+          todayAppointments.length
+        );
+
+        const newMetrics = {
           totalPatients: patientsResult.count || 0,
           totalDoctors: doctorsResult.count || 0,
-          todayAppointments: todayAppointmentsResult.count || 0,
-          pendingBills: pendingBillsResult.count || 0,
-          overdueFollowups: overdueFollowupsResult.count || 0,
-        });
+          todayAppointments: todayAppointments.length, // FIXED: Use filtered count
+          pendingBills: billsResult.data?.length || 0,
+          overdueFollowups: followupsResult.data?.length || 0,
+        };
+
+        console.log("Dashboard: Final metrics:", newMetrics);
+        setMetrics(newMetrics);
       } catch (error) {
-        console.error('Error fetching dashboard metrics:', error);
+        console.error("Dashboard: Error fetching metrics:", error);
       } finally {
         setLoading(false);
       }
@@ -75,33 +116,21 @@ export function useDashboardMetrics() {
 
     fetchMetrics();
 
-    // Set up real-time subscriptions
+    // Real-time subscriptions
     const subscription = supabase
-      .channel('dashboard-metrics')
+      .channel("dashboard-metrics")
       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'patients', filter: `user_id=eq.${user.id}` },
-        () => fetchMetrics()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'doctors', filter: `user_id=eq.${user.id}` },
-        () => fetchMetrics()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'appointments', filter: `user_id=eq.${user.id}` },
-        () => fetchMetrics()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'bills', filter: `user_id=eq.${user.id}` },
-        () => fetchMetrics()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'followups', filter: `user_id=eq.${user.id}` },
-        () => fetchMetrics()
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "appointments",
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          console.log("Dashboard: Appointments changed, refetching...");
+          fetchMetrics();
+        }
       )
       .subscribe();
 
