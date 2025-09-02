@@ -38,9 +38,11 @@
 - Added export functionality to Reports page - generates professional HTML reports with all analytics data.
 - Resolved multiple database schema cache errors by aligning code with actual database structure.
 - Enhanced bill management with proper status tracking (pending, paid, overdue) and payment mode recording.
-- Fixeed the notification allignment issue in the notification center.
+- Fixed the notification allignment issue in the notification center.
 - Improved overall UI of `Notifications` panel for better user experience and responsiveness.
 - Replaced the `Activity` icon with `ArrowLeftCircle` icon for better visual representation of "Go to homepage" action.
+- Updated the UI of the `landing/home page` for a more modern, minimalist and appealing look.
+- Updated the UI of the `Notification` for a cleaner and more user-friendly experience.
 
 
 ----------

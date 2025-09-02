@@ -1,22 +1,31 @@
-import React, { useState, useEffect } from "react";
-import { X, Bell, Check, CheckCheck, Trash2 } from "lucide-react";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  X,
+  Bell,
+  Check,
+  CheckCheck,
+  Trash2,
+  CalendarDays,
+  CreditCard,
+  Cog,
+  Info,
+} from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 
 interface Notification {
   id: string;
-  type: string;
+  type: "appointment" | "payment" | "system" | string;
   title: string;
   message: string;
-  priority: string;
   read: boolean;
   created_at: string;
 }
 
 interface NotificationCenterProps {
   onClose: () => void;
-  onNotificationUpdate?: () => void; // ADDED: Optional callback for updates
+  onNotificationUpdate?: () => void;
 }
 
 export function NotificationCenter({
@@ -26,10 +35,10 @@ export function NotificationCenter({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
+  const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!user) return;
-
     const fetchNotifications = async () => {
       try {
         const { data, error } = await supabase
@@ -37,20 +46,15 @@ export function NotificationCenter({
           .select("*")
           .eq("user_id", user.id)
           .order("created_at", { ascending: false })
-          .limit(20);
-
-        if (error) {
-          console.error("Error fetching notifications:", error);
-        } else {
-          setNotifications(data || []);
-        }
-      } catch (error) {
-        console.error("Error in fetchNotifications:", error);
+          .limit(50);
+        if (!error) setNotifications(data || []);
+        else console.error("Error fetching notifications:", error);
+      } catch (e) {
+        console.error("Error in fetchNotifications:", e);
       } finally {
         setLoading(false);
       }
     };
-
     fetchNotifications();
   }, [user]);
 
@@ -60,44 +64,35 @@ export function NotificationCenter({
         .from("notifications")
         .update({ read: true })
         .eq("id", id);
-
-      if (error) {
-        console.error("Error marking notification as read:", error);
-      } else {
+      if (!error) {
         setNotifications((prev) =>
-          prev.map((notif) =>
-            notif.id === id ? { ...notif, read: true } : notif
-          )
+          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
         );
-        // ADDED: Call update handler
         onNotificationUpdate?.();
+      } else {
+        console.error("Error marking notification as read:", error);
       }
-    } catch (error) {
-      console.error("Error in markAsRead:", error);
+    } catch (e) {
+      console.error("Error in markAsRead:", e);
     }
   };
 
   const markAllAsRead = async () => {
     if (!user) return;
-
     try {
       const { error } = await supabase
         .from("notifications")
         .update({ read: true })
         .eq("user_id", user.id)
         .eq("read", false);
-
-      if (error) {
-        console.error("Error marking all notifications as read:", error);
-      } else {
-        setNotifications((prev) =>
-          prev.map((notif) => ({ ...notif, read: true }))
-        );
-        // ADDED: Call update handler
+      if (!error) {
+        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
         onNotificationUpdate?.();
+      } else {
+        console.error("Error marking all as read:", error);
       }
-    } catch (error) {
-      console.error("Error in markAllAsRead:", error);
+    } catch (e) {
+      console.error("Error in markAllAsRead:", e);
     }
   };
 
@@ -107,147 +102,238 @@ export function NotificationCenter({
         .from("notifications")
         .delete()
         .eq("id", id);
-
-      if (error) {
-        console.error("Error deleting notification:", error);
-      } else {
-        setNotifications((prev) => prev.filter((notif) => notif.id !== id));
-        // ADDED: Call update handler
+      if (!error) {
+        setNotifications((prev) => prev.filter((n) => n.id !== id));
         onNotificationUpdate?.();
+      } else {
+        console.error("Error deleting notification:", error);
       }
-    } catch (error) {
-      console.error("Error in deleteNotification:", error);
+    } catch (e) {
+      console.error("Error in deleteNotification:", e);
     }
   };
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return "text-red-600 bg-red-50 border-red-200";
-      case "medium":
-        return "text-yellow-600 bg-yellow-50 border-yellow-200";
-      case "low":
-        return "text-green-600 bg-green-50 border-green-200";
-      default:
-        return "text-blue-600 bg-blue-50 border-blue-200";
-    }
-  };
-
-  const getTypeIcon = (type: string) => {
+  // Map type -> minimal color tokens (bg + icon + chip)
+  const typeStyles = (type: string) => {
     switch (type) {
-      case "appointment":
-        return "📅";
       case "payment":
-        return "💰";
+        return {
+          rowBg: "bg-emerald-50",
+          iconColor: "text-emerald-700",
+          chipBg: "bg-emerald-100 text-emerald-800",
+          border: "border-emerald-100",
+        };
+      case "appointment":
+        return {
+          rowBg: "bg-blue-50",
+          iconColor: "text-blue-700",
+          chipBg: "bg-blue-100 text-blue-800",
+          border: "border-blue-100",
+        };
       case "system":
-        return "⚙️";
+        return {
+          rowBg: "bg-slate-50",
+          iconColor: "text-slate-700",
+          chipBg: "bg-slate-200 text-slate-800",
+          border: "border-slate-200",
+        };
       default:
-        return "📢";
+        return {
+          rowBg: "bg-indigo-50",
+          iconColor: "text-indigo-700",
+          chipBg: "bg-indigo-100 text-indigo-800",
+          border: "border-indigo-100",
+        };
+    }
+  };
+
+  const TypeIcon = ({
+    type,
+    className,
+  }: {
+    type: string;
+    className?: string;
+  }) => {
+    switch (type) {
+      case "payment":
+        return <CreditCard className={className} />;
+      case "appointment":
+        return <CalendarDays className={className} />;
+      case "system":
+        return <Cog className={className} />;
+      default:
+        return <Info className={className} />;
     }
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
+  // Close on Escape
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   return (
-    <div className="fixed top-6 right-0 mt-16 mr-6 w-96 bg-white rounded-lg shadow-lg border border-gray-200 z-50 max-h-96 overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-gray-200">
-        <div className="flex items-center space-x-2">
-          <Bell className="h-5 w-5 text-blue-600" />
-          <h3 className="text-lg font-semibold">Notifications</h3>
-          {unreadCount > 0 && (
-            <span className="bg-red-500 text-white text-xs px-2 py-1 rounded-full">
-              {unreadCount}
-            </span>
+    <div
+      className="fixed inset-0 z-50 flex md:items-start md:justify-end"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Notifications"
+    >
+      <div
+        className="absolute inset-0 bg-black/30 md:bg-transparent"
+        onClick={onClose}
+      />
+
+      <div
+        ref={panelRef}
+        className="
+          relative bg-white md:mt-6 md:mr-6 w-full md:w-[420px]
+          h-[100dvh] md:h-[560px]
+          rounded-none md:rounded-xl
+          border-0 md:border md:border-slate-200
+          shadow-none md:shadow-sm
+          flex flex-col
+        "
+      >
+        {/* Header */}
+        <div className="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Bell className="h-5 w-5 text-blue-600" />
+              <h3 className="text-base font-semibold text-slate-900">
+                Notifications
+              </h3>
+              {unreadCount > 0 && (
+                <span className="ml-1 inline-flex items-center justify-center min-w-5 h-5 px-2 text-xs font-medium rounded-full bg-blue-600 text-white">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAllAsRead}
+                  className="text-sm text-blue-700 hover:text-blue-800 inline-flex items-center gap-1"
+                >
+                  <CheckCheck className="h-4 w-4" />
+                  <span>Mark all</span>
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                className="p-1.5 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                aria-label="Close notifications"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="p-6 text-center text-slate-500">Loading…</div>
+          ) : notifications.length === 0 ? (
+            <div className="p-10 text-center text-slate-500">
+              <Bell className="h-10 w-10 mx-auto mb-3 text-slate-300" />
+              <p>No notifications yet</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-slate-100">
+              {notifications.map((n) => {
+                const created = new Date(n.created_at);
+                const relative = formatDistanceToNow(created, {
+                  addSuffix: true,
+                });
+
+                const style = typeStyles(n.type);
+                return (
+                  <li key={n.id} className="px-3 py-2 sm:px-4 sm:py-3">
+                    <div
+                      className={`rounded-lg border ${style.border} ${style.rowBg} px-3 py-2 sm:px-3.5 sm:py-3`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <TypeIcon
+                          type={n.type}
+                          className={`h-5 w-5 ${style.iconColor} shrink-0 mt-0.5`}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-medium text-slate-900 truncate">
+                              {n.title}
+                            </h4>
+                            <span
+                              className={`hidden sm:inline px-1.5 py-0.5 text-[11px] rounded-md ${style.chipBg}`}
+                            >
+                              {n.type}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-sm text-slate-700">
+                            {n.message}
+                          </p>
+                          <div className="mt-1 flex items-center gap-2 text-xs text-slate-500">
+                            <time
+                              title={format(created, "PPpp")}
+                              dateTime={created.toISOString()}
+                            >
+                              {relative}
+                            </time>
+                            {!n.read && (
+                              <span className="text-blue-700">• Unread</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 ml-1">
+                          {!n.read && (
+                            <button
+                              onClick={() => markAsRead(n.id)}
+                              className="p-1.5 rounded-md text-blue-700 hover:bg-blue-50"
+                              aria-label="Mark as read"
+                            >
+                              <Check className="h-4 w-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => deleteNotification(n.id)}
+                            className="p-1.5 rounded-md text-rose-700 hover:bg-rose-50"
+                            aria-label="Delete notification"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
-        <div className="flex items-center space-x-2">
+
+        {/* Footer */}
+        <div className="sticky bottom-0 bg-white border-t border-slate-200 px-4 py-2 flex items-center justify-end gap-2">
           {unreadCount > 0 && (
             <button
               onClick={markAllAsRead}
-              className="text-sm text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+              className="inline-flex items-center gap-1 text-sm text-blue-700 hover:text-blue-800"
             >
               <CheckCheck className="h-4 w-4" />
-              <span>Mark all read</span>
+              Mark all
             </button>
           )}
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-600"
+            className="inline-flex items-center justify-center rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
           >
-            <X className="h-5 w-5" />
+            Close
           </button>
         </div>
-      </div>
-
-      <div className="max-h-80 overflow-y-auto">
-        {loading ? (
-          <div className="p-4 text-center text-gray-500">
-            Loading notifications...
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">
-            <Bell className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-            <p>No notifications yet</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {notifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`p-4 hover:bg-gray-50 transition-colors ${
-                  !notification.read ? "bg-blue-50" : ""
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-2 mb-1">
-                      <span className="text-lg">
-                        {getTypeIcon(notification.type)}
-                      </span>
-                      <h4 className="text-sm font-semibold text-gray-900">
-                        {notification.title}
-                      </h4>
-                      <span
-                        className={`px-2 py-1 text-xs font-medium rounded-full border ${getPriorityColor(
-                          notification.priority
-                        )}`}
-                      >
-                        {notification.priority.toUpperCase()}
-                      </span>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-2">
-                      {notification.message}
-                    </p>
-                    <p className="text-xs text-gray-400">
-                      {format(
-                        new Date(notification.created_at),
-                        "MMM d, h:mm a"
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-1 ml-2">
-                    {!notification.read && (
-                      <button
-                        onClick={() => markAsRead(notification.id)}
-                        className="text-blue-600 hover:text-blue-800 p-1"
-                        title="Mark as read"
-                      >
-                        <Check className="h-4 w-4" />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => deleteNotification(notification.id)}
-                      className="text-red-600 hover:text-red-800 p-1"
-                      title="Delete"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
