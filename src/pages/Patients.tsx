@@ -2,12 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, Eye, Users } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  CardTitle,
-} from "../components/ui/Card";
+import { Card, CardContent } from "../components/ui/Card";
 import { AddPatientModal } from "../components/AddPatientModal";
 import { ViewPatientModal } from "../components/ViewPatientModal";
 import { EditPatientModal } from "../components/EditPatientModal";

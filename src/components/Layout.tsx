@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Outlet, NavLink, useNavigate } from "react-router-dom";
+import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
 import {
   Home,
   Users,
@@ -16,6 +16,7 @@ import {
   Activity,
   ChevronLeft,
   ChevronRight,
+  ArrowLeftCircle,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { NotificationCenter } from "./NotificationCenter";
@@ -144,9 +145,13 @@ export function Layout() {
               sidebarCollapsed ? "justify-center" : "space-x-3"
             }`}
           >
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <Activity className="h-6 w-6 text-white" />
-            </div>
+            <Link
+              to="/"
+              className="group flex items-center justify-center p-2 rounded-lg border border-transparent hover:border-blue-300 hover:bg-blue-50 transition"
+              aria-label="Go to homepage"
+            >
+              <ArrowLeftCircle className="h-6 w-6 text-blue-600 group-hover:text-blue-800 transition" />
+            </Link>
             {!sidebarCollapsed && (
               <>
                 <h1 className="text-xl font-bold text-gray-800">ClinicAdmin</h1>

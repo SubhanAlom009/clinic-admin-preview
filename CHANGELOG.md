@@ -38,8 +38,19 @@
 - Added export functionality to Reports page - generates professional HTML reports with all analytics data.
 - Resolved multiple database schema cache errors by aligning code with actual database structure.
 - Enhanced bill management with proper status tracking (pending, paid, overdue) and payment mode recording.
-- Fixeed the notification allignment issue in the notification center.
+- Fixed the notification allignment issue in the notification center.
 - Improved overall UI of `Notifications` panel for better user experience and responsiveness.
+- Replaced the `Activity` icon with `ArrowLeftCircle` icon for better visual representation of "Go to homepage" action.
+- Updated the UI of the `landing/home page` for a more modern, minimalist and appealing look.
+- Updated the UI of the `Notification` for a cleaner and more user-friendly experience.
+
+## [2025-09-3] Added/Fixed
+- Separated the `Header/Navbar` component into `HeaderHome` from the `landing` page.
+- Made the new  `HeaderHome` component responsive for better user experience on different devices.
+- Added a `Hamburger menu` in the `HeaderHome` component for better navigation on smaller screens.
+- Updated the `ActionButtons` component to Align better in different devices.
+- Added horizontal scrollbar to the `Tabs` component in the `Settings` and `History` page for better navigation when there are many tabs or in small devices.
+
 
 
 ----------
