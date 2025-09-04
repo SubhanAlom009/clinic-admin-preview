@@ -7,6 +7,7 @@
 
 ## [2025-09-04] Added/Fixed
 
+### 🔧 UI & Calendar Features
 - Fixed notification queries and refetch logic across the app to use the `status` column (values: `unread` / `read`) instead of a boolean `read` column — resolved 400 errors when marking notifications as read (see `src/components/Layout.tsx` and `src/components/NotificationCenter.tsx`).
 - Implemented a production-ready calendar view component at `src/components/CalendarView.tsx` using `react-big-calendar`.
 	- Calendar shows appointments with color-coded status badges, a custom toolbar, and an appointment details modal with quick status actions.
@@ -15,14 +16,44 @@
 - Addressed several TypeScript/type mismatches while wiring the calendar and appointments integration; added small, explicit type casts where needed to work around Supabase client typing for updates (temporary, low-risk).
 - Improved status update flow for appointments (client mutation + query invalidation) and added UI controls to mark Check-In / Start / Complete / No-Show / Cancel from the calendar event modal.
 - Minor UI and accessibility tweaks: toolbar buttons, status badge styling, and loading state for calendar.
-
-Notes:
-- Some Supabase typing issues required explicit casts in a few update calls; these are noted in the code and can be refined by tightening the `Database` typings if desired.
-- Dev server was used during testing; if you want, I can run it and verify the flows in the browser next.
 - Added Company logo in the header of the `layout` component for consistent branding across all pages.
 - Fixed the collapsable sidebar to ensure it works correctly on all screen sizes.
 - Added a `Go back to Home` button in the header of the dashboard to allow users to easily navigate back to the landing page.
 - Updated the `landing page` navbar so that after signing in, the user's information (such as name or clinic name) is displayed instead of the "Sign In" button, providing a personalized experience.
+
+### 🚀 **MAJOR: Database Schema Consolidation**
+- **BREAKING CHANGE**: Consolidated 4+ fragmented migration files into 2 comprehensive, production-ready migrations:
+  - `20250904_comprehensive_schema.sql` - Complete clinic database schema (600+ lines)
+  - `20250904_queue_functions.sql` - Advanced queue management functions (400+ lines)
+- **Moved old migrations to `backup_old_migrations/` folder** to prevent conflicts and schema duplication issues
+- **Enhanced appointment system** with advanced queue management:
+  - Queue positions, ETAs, check-in status tracking
+  - Real-time queue recalculation with PostgreSQL functions
+  - Distributed locking system for concurrent operations
+  - Event-driven notifications and job processing
+- **Added robust tables**:
+  - `job_queue` - Background job processing with retry logic
+  - `notification_queue` - SMS/Email notification delivery system
+  - `appointment_events` - Complete audit trail for all appointment changes
+  - `doctor_schedules` & `doctor_breaks` - Advanced scheduling constraints
+  - `queue_locks` - Distributed locking for concurrent queue operations
+- **Production-grade optimizations**:
+  - Strategic database indexes for performance
+  - Automatic timestamp triggers
+  - Row-level security policies
+  - Data validation constraints
+
+### 🔧 Technical Improvements
+- **Fixed architecture issue**: Eliminated schema proliferation that was causing deployment conflicts
+- **Performance optimizations**: Added indexes for queue operations, appointment lookups, and analytics
+- **Error handling**: Comprehensive error handling in PostgreSQL functions with proper lock management
+- **Scalability**: Designed for multiple clinics with proper user isolation and concurrent operations
+
+Notes:
+- **IMPORTANT**: Old migration files are safely backed up but should be replaced with the new consolidated schema
+- The new schema is fully backward compatible with existing appointment data
+- Some Supabase typing issues required explicit casts in a few update calls; these are noted in the code and can be refined by tightening the `Database` typings if desired.
+- Enhanced queue management now supports real-time ETA calculations and automatic notifications
 
 
 ## [2025-09-1] Added/Fixed
