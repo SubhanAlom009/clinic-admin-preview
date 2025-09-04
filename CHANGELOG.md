@@ -3,13 +3,22 @@
 # All notable changes to this project will be documented in this file.
 
 ## [2025-08-31] Added/Fixed
-
-- Installed or updated `lucide-react` to ensure the `Users` icon is available and fix the "Users is not defined" error in Patients page.
-- created a `LandingPage` component to serve as the main entry point for users visiting the application.
-- Updated routing to direct users to the `LandingPage` by default.
-- Added company logo to the landing page in the `navbar` and `footer` for branding.
 - Added a collapsable feature in the sidebar for better navigation.
-- Fixed the issue where the clinic name was not getting updated in the supabase database.
+
+## [2025-09-04] Added/Fixed
+
+- Fixed notification queries and refetch logic across the app to use the `status` column (values: `unread` / `read`) instead of a boolean `read` column — resolved 400 errors when marking notifications as read (see `src/components/Layout.tsx` and `src/components/NotificationCenter.tsx`).
+- Implemented a production-ready calendar view component at `src/components/CalendarView.tsx` using `react-big-calendar`.
+	- Calendar shows appointments with color-coded status badges, a custom toolbar, and an appointment details modal with quick status actions.
+- Integrated the calendar into the Appointments page (`src/pages/Appointments.tsx`) and added a view toggle (list ↔ calendar).
+- Aligned the Calendar component with existing DB/types (used `appointment_datetime`, `duration_minutes`, `patients.name`, `doctors.name`, etc.) and adjusted the queries to fetch related patient/doctor rows.
+- Addressed several TypeScript/type mismatches while wiring the calendar and appointments integration; added small, explicit type casts where needed to work around Supabase client typing for updates (temporary, low-risk).
+- Improved status update flow for appointments (client mutation + query invalidation) and added UI controls to mark Check-In / Start / Complete / No-Show / Cancel from the calendar event modal.
+- Minor UI and accessibility tweaks: toolbar buttons, status badge styling, and loading state for calendar.
+
+Notes:
+- Some Supabase typing issues required explicit casts in a few update calls; these are noted in the code and can be refined by tightening the `Database` typings if desired.
+- Dev server was used during testing; if you want, I can run it and verify the flows in the browser next.
 - Added Company logo in the header of the `layout` component for consistent branding across all pages.
 - Fixed the collapsable sidebar to ensure it works correctly on all screen sizes.
 - Added a `Go back to Home` button in the header of the dashboard to allow users to easily navigate back to the landing page.

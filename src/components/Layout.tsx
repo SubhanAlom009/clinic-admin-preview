@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ArrowLeftCircle,
+  Clock,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { NotificationCenter } from "./NotificationCenter";
@@ -27,6 +28,7 @@ const navigationItems = [
   { to: "/admin/patients", icon: Users, label: "Patients" },
   { to: "/admin/doctors", icon: UserCheck, label: "Doctors" },
   { to: "/admin/appointments", icon: Calendar, label: "Appointments" },
+  { to: "/admin/queue", icon: Clock, label: "Queue" },
   { to: "/admin/billing", icon: Receipt, label: "Billing" },
   { to: "/admin/reports", icon: BarChart3, label: "Reports" },
   { to: "/admin/history", icon: History, label: "History" },
@@ -51,7 +53,7 @@ export function Layout() {
           .from("notifications")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id)
-          .eq("read", false);
+          .eq("status", "unread");
 
         if (error) {
           console.error("Error fetching unread count:", error);
@@ -100,7 +102,7 @@ export function Layout() {
           .from("notifications")
           .select("id", { count: "exact", head: true })
           .eq("user_id", user.id)
-          .eq("read", false);
+          .eq("status", "unread");
 
         if (error) {
           console.error("Error fetching unread count:", error);

@@ -13,15 +13,7 @@ import {
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { format, formatDistanceToNow } from "date-fns";
-
-interface Notification {
-  id: string;
-  type: "appointment" | "payment" | "system" | string;
-  title: string;
-  message: string;
-  read: boolean;
-  created_at: string;
-}
+import { Notification } from "../types";
 
 interface NotificationCenterProps {
   onClose: () => void;
@@ -62,11 +54,11 @@ export function NotificationCenter({
     try {
       const { error } = await supabase
         .from("notifications")
-        .update({ read: true })
+        .update({ status: "read" } as any)
         .eq("id", id);
       if (!error) {
         setNotifications((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+          prev.map((n) => (n.id === id ? { ...n, status: "read" as const } : n))
         );
         onNotificationUpdate?.();
       } else {
@@ -82,11 +74,13 @@ export function NotificationCenter({
     try {
       const { error } = await supabase
         .from("notifications")
-        .update({ read: true })
+        .update({ status: "read" } as any)
         .eq("user_id", user.id)
-        .eq("read", false);
+        .eq("status", "unread");
       if (!error) {
-        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        setNotifications((prev) =>
+          prev.map((n) => ({ ...n, status: "read" as const }))
+        );
         onNotificationUpdate?.();
       } else {
         console.error("Error marking all as read:", error);
@@ -166,7 +160,7 @@ export function NotificationCenter({
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = notifications.filter((n) => n.status === "unread").length;
 
   // Close on Escape
   useEffect(() => {
@@ -284,13 +278,13 @@ export function NotificationCenter({
                             >
                               {relative}
                             </time>
-                            {!n.read && (
+                            {n.status === "unread" && (
                               <span className="text-blue-700">• Unread</span>
                             )}
                           </div>
                         </div>
                         <div className="flex items-center gap-1 ml-1">
-                          {!n.read && (
+                          {n.status === "unread" && (
                             <button
                               onClick={() => markAsRead(n.id)}
                               className="p-1.5 rounded-md text-blue-700 hover:bg-blue-50"

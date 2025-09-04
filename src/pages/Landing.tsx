@@ -16,8 +16,6 @@ import {
   Phone,
   Mail,
   MapPin,
-  User,
-  LogOut,
   PlayCircle,
 } from "lucide-react";
 import { Button } from "../components/ui/Button";
@@ -26,7 +24,7 @@ import { supabase } from "../lib/supabase";
 import HeaderHome from "../components/HeaderHome";
 
 export function Landing() {
-  const { user, signOut, loading } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
 
@@ -53,20 +51,20 @@ export function Landing() {
     navigate("/");
   };
 
-  // Minimalist palette tokens (tailwind classes)
-  // Light healthcare feel with calming blues and neutral grays
-  // Primary: blue-600, tints: blue-50/100, accents via border-slate-200
-  // Text: slate-800/600, Surfaces: white / slate-50
-  const brand = {
-    bgSoft: "bg-blue-50",
-    textStrong: "text-slate-900",
-    textSoft: "text-slate-600",
-    border: "border-slate-200",
-    card: "bg-white",
-    primary: "text-blue-700",
-    primaryBg: "bg-blue-600",
-    primaryRing: "focus:ring-blue-600",
-  };
+  // // Minimalist palette tokens (tailwind classes)
+  // // Light healthcare feel with calming blues and neutral grays
+  // // Primary: blue-600, tints: blue-50/100, accents via border-slate-200
+  // // Text: slate-800/600, Surfaces: white / slate-50
+  // const brand = {
+  //   bgSoft: "bg-blue-50",
+  //   textStrong: "text-slate-900",
+  //   textSoft: "text-slate-600",
+  //   border: "border-slate-200",
+  //   card: "bg-white",
+  //   primary: "text-blue-700",
+  //   primaryBg: "bg-blue-600",
+  //   primaryRing: "focus:ring-blue-600",
+  // };
 
   const features = [
     {
@@ -179,7 +177,7 @@ export function Landing() {
               <span className="font-medium">clear actions</span>—patients,
               appointments, billing, and insights in one calm interface.
             </p>
-            <div className="sm:flex justify-center items-center">
+            <div className="sm:flex justify-center lg:justify-start items-center">
               <ActionButtons />
             </div>
           </div>

@@ -35,13 +35,27 @@ export interface Appointment {
   doctor_id: string;
   appointment_datetime: string;
   duration_minutes: number;
-  status: "scheduled" | "completed" | "cancelled" | "no_show" | "rescheduled";
+  status:
+    | "Scheduled"
+    | "Checked-In"
+    | "In-Progress"
+    | "Completed"
+    | "Cancelled"
+    | "No-Show";
   notes: string | null;
   symptoms: string | null;
   diagnosis: string | null;
   prescription: string | null;
   created_at: string;
   updated_at: string;
+  // Enhanced scheduling fields
+  estimated_start_time?: string;
+  actual_start_time?: string;
+  actual_end_time?: string;
+  queue_position?: number;
+  patient_checked_in?: boolean;
+  checked_in_at?: string;
+  expected_duration_minutes?: number;
   patient?: Patient;
   doctor?: Doctor;
 }

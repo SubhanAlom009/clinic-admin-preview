@@ -18,6 +18,7 @@ import { Billing } from "./pages/Billing";
 import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
 import { History } from "./pages/History";
+import { QueueDashboard } from "./pages/QueueDashboard";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -47,6 +48,7 @@ function App() {
             <Route path="patients" element={<Patients />} />
             <Route path="doctors" element={<Doctors />} />
             <Route path="appointments" element={<Appointments />} />
+            <Route path="queue" element={<QueueDashboard />} />
             <Route path="billing" element={<Billing />} />
             <Route path="reports" element={<Reports />} />
             <Route path="history" element={<History />} />
