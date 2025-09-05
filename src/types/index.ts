@@ -1,3 +1,5 @@
+import { AppointmentStatus, BillingStatus } from "../constants";
+
 export interface Patient {
   id: string;
   user_id: string;
@@ -8,7 +10,7 @@ export interface Patient {
   email: string | null;
   address: string | null;
   emergency_contact: string | null;
-  medical_history: any;
+  medical_history: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -21,7 +23,7 @@ export interface Doctor {
   qualifications: string | null;
   contact: string;
   email: string | null;
-  availability: any;
+  availability: Record<string, any> | null;
   consultation_fee: number;
   experience_years: number;
   created_at: string;
@@ -35,13 +37,7 @@ export interface Appointment {
   doctor_id: string;
   appointment_datetime: string;
   duration_minutes: number;
-  status:
-    | "Scheduled"
-    | "Checked-In"
-    | "In-Progress"
-    | "Completed"
-    | "Cancelled"
-    | "No-Show";
+  status: AppointmentStatus;
   notes: string | null;
   symptoms: string | null;
   diagnosis: string | null;
@@ -69,7 +65,7 @@ export interface Bill {
   amount: number;
   tax_amount: number;
   total_amount: number;
-  status: "pending" | "paid" | "partially_paid" | "overdue" | "cancelled";
+  status: BillingStatus;
   payment_mode: "cash" | "card" | "upi" | "insurance" | "cheque" | null;
   payment_date: string | null;
   due_date: string | null;

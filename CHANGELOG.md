@@ -55,6 +55,37 @@ Notes:
 - Some Supabase typing issues required explicit casts in a few update calls; these are noted in the code and can be refined by tightening the `Database` typings if desired.
 - Enhanced queue management now supports real-time ETA calculations and automatic notifications
 
+## [2025-09-05] Added/Fixed
+
+### 🔧 Urgent Fixes (database & API)
+- Fixed appointment status constraint and standardized status values to lowercase to prevent insertion errors (resolved "new row for relation 'appointments' violates check constraint 'appointments_status_check'").
+- Added missing appointment columns required by queue management and ETA calculations: `patient_checked_in`, `checked_in_at`, `estimated_start_time`, `actual_start_time`, `actual_end_time`, `queue_position`, `expected_duration_minutes`.
+- Created `job_queue` and `notification_queue` tables and added migrations to resolve PostgREST schema errors and enable background job processing.
+- Consolidated and fixed several migrations to ensure schema cache consistency and added safe refactor migrations under `supabase/migrations/`.
+
+### 🎨 UI / Calendar / Modal
+- Redesigned calendar to a minimal, professional aesthetic with light orange/rose headers and subtle status-based colors for events.
+- Reworked calendar `CustomToolbar` buttons (Today / Prev / Next / View toggles) to use the new orange-themed styles.
+- Implemented status-based event classes and moved styling to `src/components/CalendarView.css`.
+- Reworked `AppointmentDetailsModal`:
+  - Removed emojis and simplified layout for a clean, professional look.
+  - Moved Date & Time to the top-right of the modal in small text.
+  - Added clear Patient and Doctor information sections (contact, email, age, gender, specialization, fees).
+  - Replaced JSON medical-history display with plain text handling (accepts string or comma-separated arrays and renders as comma-separated text).
+  - Added timing fields display: Checked-in time, Started, Ended, ETA.
+  - Added derived timing analytics: Waiting Time, Consultation Duration, Schedule Variance, Total Time (scheduled→completion).
+  - Improved action button flow: updates now refresh local modal state and keep the modal open for Completed appointments so you can see timing details.
+
+### 🛠 Code / Types
+- Aligned frontend enums/constants (`AppointmentStatus`) with database constraints and converted usage to enum constants to avoid mismatches.
+- Fixed TypeScript mismatches in `AppointmentDetailsModal` and `CalendarView` by replacing string literals with `AppointmentStatus` enum values.
+- Applied small type-safety improvements and replaced `any` usage with `unknown` or more specific types where possible.
+
+### ✅ Notes & Follow-ups
+- After these changes, test the appointment flow: create, check-in, start, complete — ensure `checked_in_at`, `actual_start_time`, and `actual_end_time` are persisted and shown in the modal.
+- Next recommended steps: integrate quick billing from the Completed modal, enable real-time queue updates with Supabase subscriptions, and add small analytics (average wait/consult times) on the Dashboard.
+
+
 
 ## [2025-09-1] Added/Fixed
 - Created a new `History` page to display recent activities and changes made within the dashboard.
@@ -126,3 +157,4 @@ Notes:
 - Implementing notification system.
 - Adding CSV/Excel export options.
 - Testing all functionalities for production readiness.
+

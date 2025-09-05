@@ -8,11 +8,12 @@ import {
   Calendar,
   RefreshCw,
 } from "lucide-react";
-import { Button } from "../ui/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
-import { supabase } from "../../lib/supabase";
-import { useAuth } from "../../hooks/useAuth";
-import type { Appointment } from "../../types";
+import { Button } from "./ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/Card";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../hooks/useAuth";
+import { AppointmentStatus } from "../constants";
+import type { Appointment } from "../types";
 
 interface QueueAppointment extends Appointment {
   patient?: {
@@ -54,7 +55,12 @@ export function QueueManagement({ doctorId, selectedDate }: Props) {
         )
         .eq("doctor_id", doctorId)
         .eq("appointment_datetime::date", selectedDate)
-        .in("status", ["Scheduled", "Checked-In", "In-Progress", "Completed"])
+        .in("status", [
+          AppointmentStatus.SCHEDULED,
+          AppointmentStatus.CHECKED_IN,
+          AppointmentStatus.IN_PROGRESS,
+          AppointmentStatus.COMPLETED,
+        ])
         .order("appointment_datetime");
 
       if (error) throw error;
@@ -123,33 +129,33 @@ export function QueueManagement({ doctorId, selectedDate }: Props) {
   };
 
   const checkInPatient = (appointment: QueueAppointment) => {
-    updateAppointmentStatus(appointment.id, "Checked-In", {
+    updateAppointmentStatus(appointment.id, AppointmentStatus.CHECKED_IN, {
       patient_checked_in: true,
       checked_in_at: new Date().toISOString(),
     });
   };
 
   const startAppointment = (appointment: QueueAppointment) => {
-    updateAppointmentStatus(appointment.id, "In-Progress", {
+    updateAppointmentStatus(appointment.id, AppointmentStatus.IN_PROGRESS, {
       actual_start_time: new Date().toISOString(),
     });
   };
 
   const completeAppointment = (appointment: QueueAppointment) => {
-    updateAppointmentStatus(appointment.id, "Completed", {
+    updateAppointmentStatus(appointment.id, AppointmentStatus.COMPLETED, {
       actual_end_time: new Date().toISOString(),
     });
   };
 
   const getStatusColor = (status: string, checkedIn: boolean) => {
     switch (status) {
-      case "Completed":
+      case AppointmentStatus.COMPLETED:
         return "bg-green-100 text-green-800 border-green-200";
-      case "In-Progress":
+      case AppointmentStatus.IN_PROGRESS:
         return "bg-blue-100 text-blue-800 border-blue-200";
-      case "Checked-In":
+      case AppointmentStatus.CHECKED_IN:
         return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "Scheduled":
+      case AppointmentStatus.SCHEDULED:
         return checkedIn
           ? "bg-yellow-100 text-yellow-800 border-yellow-200"
           : "bg-gray-100 text-gray-800 border-gray-200";
@@ -312,7 +318,7 @@ export function QueueManagement({ doctorId, selectedDate }: Props) {
                           appointment.patient_checked_in || false
                         )}`}
                       >
-                        {appointment.status === "Scheduled" &&
+                        {appointment.status === AppointmentStatus.SCHEDULED &&
                         appointment.patient_checked_in
                           ? "Checked-In"
                           : appointment.status}

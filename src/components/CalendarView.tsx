@@ -1,19 +1,19 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { Calendar, dateFnsLocalizer, View, Event } from 'react-big-calendar';
-import { format, parse, startOfWeek, getDay } from 'date-fns';
-import { enUS } from 'date-fns/locale';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../lib/supabase';
-import { Appointment, Doctor, Patient } from '../types';
-import { Button } from './ui/Button';
-import { Modal } from './ui/Modal';
-import { Card } from './ui/Card';
-import { CalendarIcon, ClockIcon, UserIcon } from '@heroicons/react/24/outline';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
-import './CalendarView.css';
+import React, { useState, useCallback, useMemo, useEffect } from "react";
+import { Calendar, dateFnsLocalizer, View, Event } from "react-big-calendar";
+import { format, parse, startOfWeek, getDay } from "date-fns";
+import { enUS } from "date-fns/locale";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../hooks/useAuth";
+import { Appointment, Doctor, Patient } from "../types";
+import { Button } from "./ui/Button";
+import { Modal } from "./ui/Modal";
+import { Card } from "./ui/Card";
+// Icons removed after refactor – keep file lean
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import "./CalendarView.css";
 
 const locales = {
-  'en-US': enUS,
+  "en-US": enUS,
 };
 
 const localizer = dateFnsLocalizer({
@@ -25,14 +25,12 @@ const localizer = dateFnsLocalizer({
 });
 
 interface AppointmentWithDetails extends Appointment {
-  patients: Patient;
-  doctors: Doctor;
+  patient: Patient;
+  doctor: Doctor;
 }
 
 interface CalendarEvent extends Event {
-  resource: {
-    appointment: AppointmentWithDetails;
-  };
+  resource: AppointmentWithDetails;
 }
 
 interface CalendarViewProps {
@@ -41,156 +39,189 @@ interface CalendarViewProps {
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
-  defaultView = 'month',
+  defaultView = "month",
   onSelectAppointment,
 }) => {
   const [view, setView] = useState<View>(defaultView);
   const [date, setDate] = useState(new Date());
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
+    null
+  );
   const [showEventModal, setShowEventModal] = useState(false);
-  const queryClient = useQueryClient();
+  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>(
+    []
+  );
+  const [loading, setLoading] = useState(true);
+  // actionLoading & inline status actions removed (delegated to unified modal)
+  const { user } = useAuth();
 
-  // Fetch appointments with related data
-  const { data: appointments = [], isLoading } = useQuery({
-    queryKey: ['appointments', 'calendar'],
-    queryFn: async () => {
+  // Fetch appointments with proper structure
+  const fetchAppointments = useCallback(async () => {
+    if (!user?.id) return;
+
+    try {
+      setLoading(true);
       const { data, error } = await supabase
-        .from('appointments')
-        .select(`
+        .from("appointments")
+        .select(
+          `
           *,
-          patients (
-            id,
-            name,
-            email,
-            contact
-          ),
-          doctors (
-            id,
-            name,
-            specialization
-          )
-        `)
-        .order('appointment_datetime', { ascending: true });
+          patient:patients(*),
+          doctor:doctors(*)
+        `
+        )
+        .eq("user_id", user.id)
+        .order("appointment_datetime", { ascending: true });
 
       if (error) throw error;
-      return data as AppointmentWithDetails[];
-    },
-  });
+
+      console.log("Calendar appointments fetched:", data);
+      setAppointments(data || []);
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchAppointments();
+
+    // Real-time subscription
+    const subscription = supabase
+      .channel("calendar-appointments")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "appointments",
+          filter: `user_id=eq.${user?.id}`,
+        },
+        () => {
+          console.log("Real-time update received");
+          fetchAppointments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [fetchAppointments, user?.id]);
 
   // Convert appointments to calendar events
   const events: CalendarEvent[] = useMemo(() => {
     return appointments.map((appointment) => {
       const start = new Date(appointment.appointment_datetime);
-      const end = new Date(start.getTime() + appointment.duration_minutes * 60000);
+      const end = new Date(
+        start.getTime() + (appointment.duration_minutes || 30) * 60000
+      );
 
       return {
         id: appointment.id,
-        title: appointment.patients.name,
+        title: `${appointment.patient?.name || "Unknown"} - ${
+          appointment.doctor?.name || "Unknown Dr."
+        }`,
         start,
         end,
-        resource: {
-          appointment,
-        },
+        resource: appointment,
       };
     });
   }, [appointments]);
 
-  // Get status color for appointments
+  // Modern status colors - Minimal palette
   const getEventStyle = (event: CalendarEvent) => {
-    const status = event.resource.appointment.status;
-    const colors = {
-      'Scheduled': '#3B82F6', // blue
-      'Checked-In': '#10B981', // green
-      'In-Progress': '#8B5CF6', // purple
-      'Completed': '#6B7280', // gray
-      'Cancelled': '#EF4444', // red
-      'No-Show': '#F59E0B', // yellow
-    };
+    const status = event.resource.status;
+
+    // Map status to CSS class for consistent styling
+    const statusClass =
+      {
+        scheduled: "event-scheduled",
+        "checked-in": "event-checked-in",
+        "in-progress": "event-in-progress",
+        completed: "event-completed",
+        cancelled: "event-cancelled",
+        "no-show": "event-no-show",
+        rescheduled: "event-rescheduled",
+      }[status] || "event-scheduled";
 
     return {
+      className: statusClass,
       style: {
-        backgroundColor: colors[status] || colors['Scheduled'],
-        border: 'none',
-        color: 'white',
-        fontSize: '12px',
+        border: "none",
+        fontSize: "12px",
+        fontWeight: "500",
       },
     };
   };
 
-  // Handle event selection
-  const handleSelectEvent = useCallback((event: CalendarEvent) => {
-    setSelectedEvent(event);
-    setShowEventModal(true);
-    if (onSelectAppointment) {
-      onSelectAppointment(event.resource.appointment);
-    }
-  }, [onSelectAppointment]);
-
-  // Update appointment status - temporarily disabled due to typing issues
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
-      // TODO: Fix Supabase typing issues
-      console.log('Status update requested:', { id, status });
-      // Temporarily disabled to fix typing issues
-      return Promise.resolve();
+  // Handle event selection - prevent double modal
+  const handleSelectEvent = useCallback(
+    (event: CalendarEvent) => {
+      if (onSelectAppointment) {
+        onSelectAppointment(event.resource);
+        return; // delegate to parent modal
+      }
+      setSelectedEvent(event);
+      setShowEventModal(true);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
-      setShowEventModal(false);
-    },
-  });
+    [onSelectAppointment]
+  );
 
-  const handleStatusUpdate = (status: string) => {
-    if (selectedEvent) {
-      updateStatusMutation.mutate({
-        id: selectedEvent.resource.appointment.id,
-        status,
-      });
-    }
-  };
+  // Update appointment status
+  // Inline update + status buttons removed in favor of unified modal in parent
 
-  // Custom toolbar component
-  const CustomToolbar = ({ 
-    label, 
-    onNavigate, 
-    onView 
-  }: { 
-    label: string; 
-    onNavigate: (action: 'PREV' | 'NEXT' | 'TODAY') => void; 
-    onView: (view: View) => void; 
+  // Modern toolbar component
+  const CustomToolbar = ({
+    label,
+    onNavigate,
+    onView,
+  }: {
+    label: string;
+    onNavigate: (action: "PREV" | "NEXT" | "TODAY") => void;
+    onView: (view: View) => void;
   }) => (
-    <div className="flex flex-col sm:flex-row justify-between items-center mb-4 space-y-2 sm:space-y-0">
-      <div className="flex items-center space-x-2">
+    <div className="flex flex-col sm:flex-row justify-between items-center mb-6 p-4 bg-gradient-to-r from-orange-50/30 to-rose-50/30 rounded-lg border border-orange-100/50">
+      <div className="flex items-center space-x-3">
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onNavigate('PREV')}
+          onClick={() => onNavigate("PREV")}
+          className="hover:bg-orange-50 border-orange-200 text-orange-700"
         >
           ←
         </Button>
-        <span className="font-semibold text-lg">{label}</span>
+        <h2 className="font-medium text-lg text-gray-800">{label}</h2>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onNavigate('NEXT')}
+          onClick={() => onNavigate("NEXT")}
+          className="hover:bg-orange-50 border-orange-200 text-orange-700"
         >
           →
         </Button>
         <Button
           variant="outline"
           size="sm"
-          onClick={() => onNavigate('TODAY')}
+          onClick={() => onNavigate("TODAY")}
+          className="hover:bg-orange-50 border-orange-200 text-orange-700"
         >
           Today
         </Button>
       </div>
-      <div className="flex space-x-1">
-        {(['month', 'week', 'day'] as View[]).map((viewName) => (
+      <div className="flex space-x-2 mt-2 sm:mt-0">
+        {(["month", "week", "day"] as View[]).map((viewName) => (
           <Button
             key={viewName}
-            variant={view === viewName ? 'primary' : 'outline'}
+            variant={view === viewName ? "primary" : "outline"}
             size="sm"
             onClick={() => onView(viewName)}
+            className={
+              view === viewName
+                ? "bg-orange-500 hover:bg-orange-600 text-white"
+                : "hover:bg-orange-50 border-orange-200 text-orange-700"
+            }
           >
             {viewName.charAt(0).toUpperCase() + viewName.slice(1)}
           </Button>
@@ -199,17 +230,20 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     </div>
   );
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      <div className="flex items-center justify-center h-96 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+          <p className="text-blue-600 font-medium">Loading calendar...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="h-full">
-      <div className="h-[600px]">
+      <div className="h-[700px] bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         <Calendar
           localizer={localizer}
           events={events}
@@ -224,134 +258,39 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
           components={{
             toolbar: CustomToolbar,
           }}
-          className="bg-white rounded-lg shadow-lg"
+          className="modern-calendar"
+          dayPropGetter={(date: Date) => ({
+            style: {
+              backgroundColor:
+                date.toDateString() === new Date().toDateString()
+                  ? "#EBF8FF"
+                  : "white",
+            },
+          })}
         />
       </div>
 
-      {/* Event Details Modal */}
-      <Modal
-        isOpen={showEventModal}
-        onClose={() => setShowEventModal(false)}
-        title="Appointment Details"
-      >
-        {selectedEvent && (
-          <div className="space-y-4">
-            <Card className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <UserIcon className="h-5 w-5 text-gray-500" />
-                    <div>
-                      <p className="font-medium">Patient</p>
-                      <p className="text-sm text-gray-600">
-                        {selectedEvent.resource.appointment.patients.name}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <UserIcon className="h-5 w-5 text-gray-500" />
-                    <div>
-                      <p className="font-medium">Doctor</p>
-                      <p className="text-sm text-gray-600">
-                        Dr. {selectedEvent.resource.appointment.doctors.name}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {selectedEvent.resource.appointment.doctors.specialization}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex items-center space-x-2">
-                    <CalendarIcon className="h-5 w-5 text-gray-500" />
-                    <div>
-                      <p className="font-medium">Date</p>
-                      <p className="text-sm text-gray-600">
-                        {format(new Date(selectedEvent.resource.appointment.appointment_datetime), 'MMMM dd, yyyy')}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <ClockIcon className="h-5 w-5 text-gray-500" />
-                    <div>
-                      <p className="font-medium">Time</p>
-                      <p className="text-sm text-gray-600">
-                        {format(new Date(selectedEvent.resource.appointment.appointment_datetime), 'hh:mm a')} 
-                        {' '}({selectedEvent.resource.appointment.duration_minutes} min)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="mt-4 pt-4 border-t">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Status</p>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                      {
-                        'Scheduled': 'bg-blue-100 text-blue-800',
-                        'Checked-In': 'bg-green-100 text-green-800',
-                        'In-Progress': 'bg-purple-100 text-purple-800',
-                        'Completed': 'bg-gray-100 text-gray-800',
-                        'Cancelled': 'bg-red-100 text-red-800',
-                        'No-Show': 'bg-yellow-100 text-yellow-800',
-                      }[selectedEvent.resource.appointment.status]
-                    }`}>
-                      {selectedEvent.resource.appointment.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </Card>
-
-            {/* Status Update Buttons */}
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleStatusUpdate('Checked-In')}
-                disabled={updateStatusMutation.isPending}
-              >
-                Check In
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleStatusUpdate('In-Progress')}
-                disabled={updateStatusMutation.isPending}
-              >
-                Start
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleStatusUpdate('Completed')}
-                disabled={updateStatusMutation.isPending}
-              >
-                Complete
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleStatusUpdate('No-Show')}
-                disabled={updateStatusMutation.isPending}
-              >
-                No Show
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleStatusUpdate('Cancelled')}
-                disabled={updateStatusMutation.isPending}
-                className="text-red-600 border-red-200 hover:bg-red-50"
-              >
-                Cancel
-              </Button>
+      {/* Internal modal retained only if no parent handler supplied */}
+      {!onSelectAppointment && (
+        <Modal
+          isOpen={showEventModal}
+          onClose={() => setShowEventModal(false)}
+          title="Appointment Details"
+        >
+          {selectedEvent && (
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                This view now delegates to the unified details modal when used
+                from the Appointments page.
+              </p>
+              <Card className="p-4">
+                Select an appointment from the main Appointments page to manage
+                status.
+              </Card>
             </div>
-          </div>
-        )}
-      </Modal>
+          )}
+        </Modal>
+      )}
     </div>
   );
 };

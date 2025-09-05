@@ -6,6 +6,7 @@ import { Button } from "./ui/Button";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { Appointment, Doctor } from "../types";
+import { AppointmentStatus } from "../constants";
 import { format } from "date-fns";
 
 interface RescheduleAppointmentModalProps {
@@ -80,7 +81,7 @@ export function RescheduleAppointmentModal({
           appointment_datetime: formData.appointment_datetime,
           duration_minutes: parseInt(formData.duration_minutes),
           notes: formData.notes || null,
-          status: "rescheduled",
+          status: AppointmentStatus.RESCHEDULED,
         })
         .eq("id", appointment.id);
 

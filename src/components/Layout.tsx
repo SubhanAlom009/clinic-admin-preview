@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
 import {
   Home,
@@ -13,11 +13,9 @@ import {
   Menu,
   X,
   Bell,
-  Activity,
   ChevronLeft,
   ChevronRight,
   ArrowLeftCircle,
-  Clock,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { NotificationCenter } from "./NotificationCenter";
@@ -28,7 +26,6 @@ const navigationItems = [
   { to: "/admin/patients", icon: Users, label: "Patients" },
   { to: "/admin/doctors", icon: UserCheck, label: "Doctors" },
   { to: "/admin/appointments", icon: Calendar, label: "Appointments" },
-  { to: "/admin/queue", icon: Clock, label: "Queue" },
   { to: "/admin/billing", icon: Receipt, label: "Billing" },
   { to: "/admin/reports", icon: BarChart3, label: "Reports" },
   { to: "/admin/history", icon: History, label: "History" },

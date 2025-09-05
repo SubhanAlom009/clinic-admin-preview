@@ -1,12 +1,35 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
-  BarChart3,
-  TrendingUp,
   Users,
   Calendar,
-  Receipt,
+  TrendingUp,
+  Activity,
+  DollarSign,
   Download,
+  BarChart3,
+  LineChart,
+  PieChart,
+  BarChart,
+  Eye,
 } from "lucide-react";
+import {
+  LineChart as RechartsLineChart,
+  BarChart as RechartsBarChart,
+  PieChart as RechartsPieChart,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  Line,
+  Bar,
+  Pie,
+  Cell,
+  Area,
+  AreaChart,
+} from "recharts";
+import { AppointmentStatus, BillingStatus } from "../constants";
 import {
   Card,
   CardHeader,
@@ -43,6 +66,33 @@ interface ReportData {
   };
 }
 
+interface ChartData {
+  appointmentTrends: Array<{
+    date: string;
+    completed: number;
+    cancelled: number;
+    scheduled: number;
+  }>;
+  revenueTrends: Array<{
+    date: string;
+    revenue: number;
+    paid: number;
+    pending: number;
+  }>;
+  appointmentDistribution: Array<{
+    name: string;
+    value: number;
+    color: string;
+  }>;
+  revenueDistribution: Array<{
+    name: string;
+    value: number;
+    color: string;
+  }>;
+}
+
+type ChartView = "line" | "bar" | "area" | "pie";
+
 export function Reports() {
   const [reportData, setReportData] = useState<ReportData>({
     appointmentStats: { total: 0, completed: 0, cancelled: 0, noShow: 0 },
@@ -55,9 +105,28 @@ export function Reports() {
     patientStats: { totalPatients: 0, newPatients: 0, returningPatients: 0 },
     doctorStats: { totalDoctors: 0, averageAppointments: 0 },
   });
+
+  const [chartData, setChartData] = useState<ChartData>({
+    appointmentTrends: [],
+    revenueTrends: [],
+    appointmentDistribution: [],
+    revenueDistribution: [],
+  });
+
   const [dateRange, setDateRange] = useState("thisMonth");
   const [loading, setLoading] = useState(true);
+  const [chartView, setChartView] = useState<ChartView>("bar");
   const { user } = useAuth();
+
+  // Define colors for charts
+  const COLORS = {
+    primary: "#3B82F6",
+    success: "#10B981",
+    warning: "#F59E0B",
+    danger: "#EF4444",
+    purple: "#8B5CF6",
+    indigo: "#6366F1",
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -120,32 +189,54 @@ export function Reports() {
           .select("*")
           .eq("user_id", user.id);
 
-        // Calculate statistics
+        // Calculate statistics with type assertions for Supabase
         const appointmentStats = {
           total: appointments?.length || 0,
           completed:
-            appointments?.filter((a) => a.status === "completed").length || 0,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            appointments?.filter(
+              (a: any) => a.status === AppointmentStatus.COMPLETED
+            ).length || 0,
           cancelled:
-            appointments?.filter((a) => a.status === "cancelled").length || 0,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            appointments?.filter(
+              (a: any) => a.status === AppointmentStatus.CANCELLED
+            ).length || 0,
           noShow:
-            appointments?.filter((a) => a.status === "no_show").length || 0,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            appointments?.filter(
+              (a: any) => a.status === AppointmentStatus.NO_SHOW
+            ).length || 0,
         };
 
         const revenueStats = {
           totalRevenue:
-            bills?.reduce((sum, bill) => sum + bill.total_amount, 0) || 0,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            bills?.reduce(
+              (sum: number, bill: any) => sum + bill.total_amount,
+              0
+            ) || 0,
           paidAmount:
             bills
-              ?.filter((b) => b.status === "paid")
-              .reduce((sum, bill) => sum + bill.total_amount, 0) || 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ?.filter((b: any) => b.status === BillingStatus.PAID)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .reduce((sum: number, bill: any) => sum + bill.total_amount, 0) ||
+            0,
           pendingAmount:
             bills
-              ?.filter((b) => b.status === "pending")
-              .reduce((sum, bill) => sum + bill.total_amount, 0) || 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ?.filter((b: any) => b.status === BillingStatus.PENDING)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .reduce((sum: number, bill: any) => sum + bill.total_amount, 0) ||
+            0,
           overdueAmount:
             bills
-              ?.filter((b) => b.status === "overdue")
-              .reduce((sum, bill) => sum + bill.total_amount, 0) || 0,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              ?.filter((b: any) => b.status === BillingStatus.OVERDUE)
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .reduce((sum: number, bill: any) => sum + bill.total_amount, 0) ||
+            0,
         };
 
         const patientStats = {
@@ -168,6 +259,123 @@ export function Reports() {
           patientStats,
           doctorStats,
         });
+
+        // Generate chart data
+        const generateChartData = () => {
+          // Appointment distribution for pie chart
+          const appointmentDistribution = [
+            {
+              name: "Completed",
+              value: appointmentStats.completed,
+              color: COLORS.success,
+            },
+            {
+              name: "Cancelled",
+              value: appointmentStats.cancelled,
+              color: COLORS.danger,
+            },
+            {
+              name: "No Show",
+              value: appointmentStats.noShow,
+              color: COLORS.warning,
+            },
+            {
+              name: "Scheduled",
+              value:
+                appointmentStats.total -
+                appointmentStats.completed -
+                appointmentStats.cancelled -
+                appointmentStats.noShow,
+              color: COLORS.primary,
+            },
+          ].filter((item) => item.value > 0);
+
+          // Revenue distribution for pie chart
+          const revenueDistribution = [
+            {
+              name: "Paid",
+              value: revenueStats.paidAmount,
+              color: COLORS.success,
+            },
+            {
+              name: "Pending",
+              value: revenueStats.pendingAmount,
+              color: COLORS.warning,
+            },
+            {
+              name: "Overdue",
+              value: revenueStats.overdueAmount,
+              color: COLORS.danger,
+            },
+          ].filter((item) => item.value > 0);
+
+          // Generate daily trends for line/bar charts
+          const appointmentTrends = [];
+          const revenueTrends = [];
+
+          // Create sample trend data for the selected period
+          const daysInPeriod = Math.min(
+            30,
+            Math.ceil(
+              (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+            )
+          );
+
+          for (let i = 0; i < daysInPeriod; i++) {
+            const currentDate = new Date(startDate);
+            currentDate.setDate(startDate.getDate() + i);
+
+            // Filter appointments for this day
+            const dayAppointments =
+              appointments?.filter((apt) => {
+                const aptDate = new Date(apt.appointment_datetime);
+                return aptDate.toDateString() === currentDate.toDateString();
+              }) || [];
+
+            // Filter bills for this day
+            const dayBills =
+              bills?.filter((bill) => {
+                const billDate = new Date(bill.created_at);
+                return billDate.toDateString() === currentDate.toDateString();
+              }) || [];
+
+            appointmentTrends.push({
+              date: format(currentDate, "MMM dd"),
+              completed: dayAppointments.filter(
+                (a: any) => a.status === AppointmentStatus.COMPLETED
+              ).length,
+              cancelled: dayAppointments.filter(
+                (a: any) => a.status === AppointmentStatus.CANCELLED
+              ).length,
+              scheduled: dayAppointments.filter(
+                (a: any) => a.status === AppointmentStatus.SCHEDULED
+              ).length,
+            });
+
+            revenueTrends.push({
+              date: format(currentDate, "MMM dd"),
+              revenue: dayBills.reduce(
+                (sum: number, bill: any) => sum + bill.total_amount,
+                0
+              ),
+              paid: dayBills
+                .filter((b: any) => b.status === BillingStatus.PAID)
+                .reduce((sum: number, bill: any) => sum + bill.total_amount, 0),
+              pending: dayBills
+                .filter((b: any) => b.status === BillingStatus.PENDING)
+                .reduce((sum: number, bill: any) => sum + bill.total_amount, 0),
+            });
+          }
+
+          return {
+            appointmentTrends,
+            revenueTrends,
+            appointmentDistribution,
+            revenueDistribution,
+          };
+        };
+
+        setChartData(generateChartData());
       } catch (error) {
         console.error("Error fetching report data:", error);
       } finally {
@@ -177,6 +385,226 @@ export function Reports() {
 
     fetchReportData();
   }, [user, dateRange]);
+
+  // Chart rendering functions
+  const renderAppointmentChart = () => {
+    if (chartView === "pie") {
+      return (
+        <ResponsiveContainer width="100%" height={300}>
+          <RechartsPieChart>
+            <Pie
+              data={chartData.appointmentDistribution}
+              cx="50%"
+              cy="50%"
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey="value"
+              label={({ name, percent }) =>
+                `${name} ${(percent * 100).toFixed(0)}%`
+              }
+            >
+              {chartData.appointmentDistribution.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip />
+          </RechartsPieChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    if (chartView === "line") {
+      return (
+        <ResponsiveContainer width="100%" height={300}>
+          <RechartsLineChart data={chartData.appointmentTrends}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey="completed"
+              stroke={COLORS.success}
+              strokeWidth={2}
+            />
+            <Line
+              type="monotone"
+              dataKey="cancelled"
+              stroke={COLORS.danger}
+              strokeWidth={2}
+            />
+            <Line
+              type="monotone"
+              dataKey="scheduled"
+              stroke={COLORS.primary}
+              strokeWidth={2}
+            />
+          </RechartsLineChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    if (chartView === "area") {
+      return (
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart data={chartData.appointmentTrends}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Area
+              type="monotone"
+              dataKey="completed"
+              stackId="1"
+              stroke={COLORS.success}
+              fill={COLORS.success}
+            />
+            <Area
+              type="monotone"
+              dataKey="cancelled"
+              stackId="1"
+              stroke={COLORS.danger}
+              fill={COLORS.danger}
+            />
+            <Area
+              type="monotone"
+              dataKey="scheduled"
+              stackId="1"
+              stroke={COLORS.primary}
+              fill={COLORS.primary}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    // Default bar chart
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <RechartsBarChart data={chartData.appointmentTrends}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="date" />
+          <YAxis />
+          <Tooltip />
+          <Legend />
+          <Bar dataKey="completed" fill={COLORS.success} />
+          <Bar dataKey="cancelled" fill={COLORS.danger} />
+          <Bar dataKey="scheduled" fill={COLORS.primary} />
+        </RechartsBarChart>
+      </ResponsiveContainer>
+    );
+  };
+
+  const renderRevenueChart = () => {
+    if (chartView === "pie") {
+      return (
+        <ResponsiveContainer width="100%" height={300}>
+          <RechartsPieChart>
+            <Pie
+              data={chartData.revenueDistribution}
+              cx="50%"
+              cy="50%"
+              outerRadius={80}
+              fill="#8884d8"
+              dataKey="value"
+              label={({ name, value }) => `${name} ₹${value.toFixed(0)}`}
+            >
+              {chartData.revenueDistribution.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(value: number) => [`₹${value.toFixed(2)}`, "Amount"]}
+            />
+          </RechartsPieChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    if (chartView === "line") {
+      return (
+        <ResponsiveContainer width="100%" height={300}>
+          <RechartsLineChart data={chartData.revenueTrends}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip
+              formatter={(value: number) => [`₹${value.toFixed(2)}`, "Amount"]}
+            />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey="revenue"
+              stroke={COLORS.primary}
+              strokeWidth={2}
+            />
+            <Line
+              type="monotone"
+              dataKey="paid"
+              stroke={COLORS.success}
+              strokeWidth={2}
+            />
+            <Line
+              type="monotone"
+              dataKey="pending"
+              stroke={COLORS.warning}
+              strokeWidth={2}
+            />
+          </RechartsLineChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    if (chartView === "area") {
+      return (
+        <ResponsiveContainer width="100%" height={300}>
+          <AreaChart data={chartData.revenueTrends}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip
+              formatter={(value: number) => [`₹${value.toFixed(2)}`, "Amount"]}
+            />
+            <Legend />
+            <Area
+              type="monotone"
+              dataKey="paid"
+              stackId="1"
+              stroke={COLORS.success}
+              fill={COLORS.success}
+            />
+            <Area
+              type="monotone"
+              dataKey="pending"
+              stackId="1"
+              stroke={COLORS.warning}
+              fill={COLORS.warning}
+            />
+          </AreaChart>
+        </ResponsiveContainer>
+      );
+    }
+
+    // Default bar chart
+    return (
+      <ResponsiveContainer width="100%" height={300}>
+        <RechartsBarChart data={chartData.revenueTrends}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="date" />
+          <YAxis />
+          <Tooltip
+            formatter={(value: number) => [`₹${value.toFixed(2)}`, "Amount"]}
+          />
+          <Legend />
+          <Bar dataKey="revenue" fill={COLORS.primary} />
+          <Bar dataKey="paid" fill={COLORS.success} />
+          <Bar dataKey="pending" fill={COLORS.warning} />
+        </RechartsBarChart>
+      </ResponsiveContainer>
+    );
+  };
 
   const exportReport = () => {
     const today = new Date();
@@ -446,7 +874,7 @@ export function Reports() {
             Comprehensive insights into your clinic performance
           </p>
         </div>
-        <div className="flex space-x-3 mt-4 sm:mt-0">
+        <div className="flex flex-wrap gap-3 mt-4 sm:mt-0">
           <Select
             name="dateRange"
             value={dateRange}
@@ -457,11 +885,83 @@ export function Reports() {
               { value: "thisMonth", label: "This Month" },
             ]}
           />
+
+          {/* Chart View Selector */}
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <Button
+              variant={chartView === "bar" ? "primary" : "outline"}
+              size="sm"
+              onClick={() => setChartView("bar")}
+              className="px-3 py-1"
+            >
+              <BarChart3 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={chartView === "line" ? "primary" : "outline"}
+              size="sm"
+              onClick={() => setChartView("line")}
+              className="px-3 py-1 ml-1"
+            >
+              <LineChart className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={chartView === "area" ? "primary" : "outline"}
+              size="sm"
+              onClick={() => setChartView("area")}
+              className="px-3 py-1 ml-1"
+            >
+              <Activity className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={chartView === "pie" ? "primary" : "outline"}
+              size="sm"
+              onClick={() => setChartView("pie")}
+              className="px-3 py-1 ml-1"
+            >
+              <PieChart className="h-4 w-4" />
+            </Button>
+          </div>
+
           <Button variant="outline" onClick={exportReport}>
             <Download className="h-5 w-5 mr-2" />
             Export
           </Button>
         </div>
+      </div>
+
+      {/* Interactive Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Appointment Trends Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Calendar className="h-5 w-5 mr-2" />
+                Appointment Trends
+              </div>
+              <div className="text-sm text-gray-500 capitalize">
+                {chartView} view
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>{renderAppointmentChart()}</CardContent>
+        </Card>
+
+        {/* Revenue Trends Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center">
+                <TrendingUp className="h-5 w-5 mr-2" />
+                Revenue Trends
+              </div>
+              <div className="text-sm text-gray-500 capitalize">
+                {chartView} view
+              </div>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>{renderRevenueChart()}</CardContent>
+        </Card>
       </div>
 
       {/* Rest of your existing JSX remains the same */}

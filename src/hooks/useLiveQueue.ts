@@ -1,8 +1,9 @@
 // Queue Management Hook
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "./useAuth";
 import type { Appointment, Patient, Doctor } from "../types";
+import { AppointmentStatus } from "../constants";
 
 export interface QueueAppointment extends Appointment {
   patient?: Patient;
@@ -30,7 +31,7 @@ export const useLiveQueue = (doctorId: string, serviceDay: string) => {
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const fetchQueue = React.useCallback(async () => {
+  const fetchQueue = useCallback(async () => {
     if (!user || !doctorId || !serviceDay) return;
 
     try {
@@ -46,7 +47,12 @@ export const useLiveQueue = (doctorId: string, serviceDay: string) => {
         )
         .eq("doctor_id", doctorId)
         .eq("appointment_datetime::date", serviceDay)
-        .in("status", ["Scheduled", "Checked-In", "In-Progress", "Completed"])
+        .in("status", [
+          AppointmentStatus.SCHEDULED,
+          AppointmentStatus.CHECKED_IN,
+          AppointmentStatus.IN_PROGRESS,
+          AppointmentStatus.COMPLETED,
+        ])
         .order("queue_position");
 
       if (fetchError) throw fetchError;

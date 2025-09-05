@@ -5,6 +5,8 @@ import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
+import { AppointmentStatus } from "../constants";
+import { AppointmentService } from "../services/AppointmentService";
 import { Patient, Doctor } from "../types";
 
 interface AddAppointmentModalProps {
@@ -99,10 +101,16 @@ export function AddAppointmentModal({
         ).toISOString(),
         duration_minutes: parseInt(formData.duration_minutes),
         notes: formData.notes || null,
-        status: "scheduled",
+        status: AppointmentStatus.SCHEDULED,
       };
 
       console.log("Creating appointment with data:", appointmentData);
+      console.log("Status value:", appointmentData.status);
+      console.log("Status enum value:", AppointmentStatus.SCHEDULED);
+      console.log(
+        "Are they equal?",
+        appointmentData.status === AppointmentStatus.SCHEDULED
+      );
 
       const { data, error: insertError } = await supabase
         .from("appointments")
@@ -116,6 +124,32 @@ export function AddAppointmentModal({
       }
 
       console.log("Appointment created successfully:", data);
+
+      // Trigger queue recalculation for the doctor/day
+      const appointmentDate = new Date(formData.appointment_datetime);
+      const serviceDay = appointmentDate.toISOString().split("T")[0]; // Get YYYY-MM-DD format
+
+      try {
+        const { error: queueError } = await supabase.from("job_queue").insert({
+          job_type: "RECALCULATE_QUEUE",
+          payload: {
+            doctor_id: formData.doctor_id,
+            service_day: serviceDay,
+            trigger: "appointment_creation",
+          },
+          priority: 1,
+          scheduled_for: new Date().toISOString(),
+        });
+
+        if (queueError) {
+          console.warn("Queue recalculation job creation failed:", queueError);
+          // Don't fail the whole appointment creation for this
+        } else {
+          console.log("Queue recalculation job scheduled");
+        }
+      } catch (queueErr) {
+        console.warn("Queue recalculation error:", queueErr);
+      }
 
       // Create notification
       const patient = patients.find((p) => p.id === formData.patient_id);
