@@ -8,6 +8,8 @@ import {
   AlertTriangle,
   Calendar,
   FileText,
+  Heart,
+  Pill,
 } from "lucide-react";
 import { Patient } from "../types";
 import { format } from "date-fns";
@@ -110,42 +112,142 @@ export function ViewPatientModal({
         </div>
 
         {/* Medical History */}
-        {patient.medical_history && (
+        {((patient.allergies && patient.allergies.length > 0) ||
+          (patient.chronic_conditions &&
+            patient.chronic_conditions.length > 0) ||
+          (patient.medications && patient.medications.length > 0) ||
+          (patient.previous_surgeries &&
+            patient.previous_surgeries.length > 0) ||
+          patient.family_history ||
+          patient.additional_notes ||
+          (patient.medical_history &&
+            Object.keys(patient.medical_history).length > 0)) && (
           <div className="bg-red-50 rounded-lg p-4">
-            <h3 className="text-lg font-semibold text-red-900 mb-3 flex items-center">
+            <h3 className="text-lg font-semibold text-red-900 mb-4 flex items-center">
               <FileText className="h-5 w-5 mr-2" />
               Medical History
             </h3>
-            <div className="text-gray-900 text-sm">
-              {typeof patient.medical_history === "string" ? (
-                <p className="whitespace-pre-wrap">{patient.medical_history}</p>
-              ) : typeof patient.medical_history === "object" &&
-                patient.medical_history !== null ? (
-                Object.keys(patient.medical_history).length > 0 ? (
-                  <div className="space-y-2">
-                    {Object.entries(patient.medical_history).map(
-                      ([key, value]) => (
-                        <div key={key}>
-                          <span className="font-medium text-red-800 capitalize">
-                            {key.replace("_", " ")}:
-                          </span>
-                          <span className="ml-2 text-gray-700">
-                            {String(value)}
-                          </span>
-                        </div>
-                      )
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-gray-600 italic">
-                    No medical history recorded
-                  </p>
-                )
-              ) : (
-                <p className="text-gray-600 italic">
-                  No medical history recorded
-                </p>
+
+            <div className="space-y-4">
+              {/* Allergies */}
+              {patient.allergies && patient.allergies.length > 0 && (
+                <div className="bg-white rounded-lg p-3 border-l-4 border-red-400">
+                  <h4 className="font-medium text-red-800 mb-2 flex items-center">
+                    <AlertTriangle className="h-4 w-4 mr-1" />
+                    Allergies
+                  </h4>
+                  <ul className="text-sm text-gray-700 space-y-1">
+                    {patient.allergies.map((allergy, index) => (
+                      <li key={index} className="flex items-center">
+                        <span className="w-2 h-2 bg-red-400 rounded-full mr-2"></span>
+                        {allergy}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               )}
+
+              {/* Chronic Conditions */}
+              {patient.chronic_conditions &&
+                patient.chronic_conditions.length > 0 && (
+                  <div className="bg-white rounded-lg p-3 border-l-4 border-orange-400">
+                    <h4 className="font-medium text-orange-800 mb-2 flex items-center">
+                      <Heart className="h-4 w-4 mr-1" />
+                      Chronic Conditions
+                    </h4>
+                    <ul className="text-sm text-gray-700 space-y-1">
+                      {patient.chronic_conditions.map((condition, index) => (
+                        <li key={index} className="flex items-center">
+                          <span className="w-2 h-2 bg-orange-400 rounded-full mr-2"></span>
+                          {condition}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+              {/* Current Medications */}
+              {patient.medications && patient.medications.length > 0 && (
+                <div className="bg-white rounded-lg p-3 border-l-4 border-blue-400">
+                  <h4 className="font-medium text-blue-800 mb-2 flex items-center">
+                    <Pill className="h-4 w-4 mr-1" />
+                    Current Medications
+                  </h4>
+                  <ul className="text-sm text-gray-700 space-y-1">
+                    {patient.medications.map((medication, index) => (
+                      <li key={index} className="flex items-center">
+                        <span className="w-2 h-2 bg-blue-400 rounded-full mr-2"></span>
+                        {medication}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Previous Surgeries */}
+              {patient.previous_surgeries &&
+                patient.previous_surgeries.length > 0 && (
+                  <div className="bg-white rounded-lg p-3 border-l-4 border-purple-400">
+                    <h4 className="font-medium text-purple-800 mb-2 flex items-center">
+                      <FileText className="h-4 w-4 mr-1" />
+                      Previous Surgeries
+                    </h4>
+                    <ul className="text-sm text-gray-700 space-y-1">
+                      {patient.previous_surgeries.map((surgery, index) => (
+                        <li key={index} className="flex items-center">
+                          <span className="w-2 h-2 bg-purple-400 rounded-full mr-2"></span>
+                          {surgery}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+              {/* Family History */}
+              {patient.family_history && (
+                <div className="bg-white rounded-lg p-3 border-l-4 border-green-400">
+                  <h4 className="font-medium text-green-800 mb-2">
+                    Family History
+                  </h4>
+                  <p className="text-sm text-gray-700">
+                    {patient.family_history}
+                  </p>
+                </div>
+              )}
+
+              {/* Additional Notes */}
+              {patient.additional_notes && (
+                <div className="bg-white rounded-lg p-3 border-l-4 border-gray-400">
+                  <h4 className="font-medium text-gray-800 mb-2">
+                    Additional Notes
+                  </h4>
+                  <p className="text-sm text-gray-700">
+                    {patient.additional_notes}
+                  </p>
+                </div>
+              )}
+
+              {/* Legacy Medical History */}
+              {patient.medical_history &&
+                Object.keys(patient.medical_history).length > 0 && (
+                  <div className="bg-white rounded-lg p-3 border-l-4 border-indigo-400">
+                    <h4 className="font-medium text-indigo-800 mb-2">
+                      Legacy Medical History
+                    </h4>
+                    <div className="text-sm text-gray-700 space-y-1">
+                      {Object.entries(patient.medical_history).map(
+                        ([key, value]) => (
+                          <div key={key}>
+                            <span className="font-medium text-indigo-700 capitalize">
+                              {key.replace("_", " ")}:
+                            </span>
+                            <span className="ml-2">{String(value)}</span>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
             </div>
           </div>
         )}

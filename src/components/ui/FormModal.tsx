@@ -57,48 +57,50 @@ export function FormModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={title}>
       <div className={`w-full mx-auto ${modalSizeClasses[maxWidth]}`}>
-        {description && (
-          <p className="text-sm text-gray-600 mb-6">{description}</p>
-        )}
+        <div className="px-6 py-4">
+          {description && (
+            <p className="text-sm text-gray-600 mb-4">{description}</p>
+          )}
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start">
-            <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
-            <div className="text-sm text-red-700">{error}</div>
-          </div>
-        )}
+          {error && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md flex items-start">
+              <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
+              <div className="text-sm text-red-700">{error}</div>
+            </div>
+          )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {children}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-6">{children}</div>
 
-          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-            {showCancelButton && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={isLoading}
-              >
-                {cancelText}
-              </Button>
-            )}
-            <Button
-              type="submit"
-              variant={submitVariant}
-              disabled={isLoading || submitDisabled}
-              className="min-w-[100px]"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                submitText
+            <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+              {showCancelButton && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onClose}
+                  disabled={isLoading}
+                >
+                  {cancelText}
+                </Button>
               )}
-            </Button>
-          </div>
-        </form>
+              <Button
+                type="submit"
+                variant={submitVariant}
+                disabled={isLoading || submitDisabled}
+                className="min-w-[100px]"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  submitText
+                )}
+              </Button>
+            </div>
+          </form>
+        </div>
       </div>
     </Modal>
   );

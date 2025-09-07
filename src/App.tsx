@@ -17,6 +17,7 @@ import { Billing } from "./pages/Billing";
 import { Reports } from "./pages/Reports";
 import { Settings } from "./pages/Settings";
 import { History } from "./pages/History";
+import { Toaster } from "./components/ui/sonner";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -53,6 +54,7 @@ function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
         </Routes>
+        <Toaster />
       </Router>
     </QueryClientProvider>
   );

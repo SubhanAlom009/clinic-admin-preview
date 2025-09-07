@@ -71,8 +71,11 @@ export class AppointmentService extends BaseService {
         query = query.eq("status", filters.status);
       }
 
-      // Order by appointment_datetime
-      query = query.order("appointment_datetime", { ascending: true });
+      // Order by emergency status first, then queue position, then time
+      query = query
+        .order("emergency_status", { ascending: false }) // Emergency appointments first
+        .order("queue_position", { ascending: true, nullsFirst: false }) // Then by queue position
+        .order("appointment_datetime", { ascending: true }); // Finally by time as fallback
 
       const { data, error } = await query;
 

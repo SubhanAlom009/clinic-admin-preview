@@ -8,6 +8,10 @@ import { AppointmentStatus } from "../constants";
 export interface QueueAppointment extends Appointment {
   patient?: Patient;
   doctor?: Doctor;
+  //Computed fields
+  waitingTime?: number;
+  estimatedDelay?: number;
+  priority?: "normal" | "urgent" | "emergency";
 }
 
 export interface QueueMetrics {
@@ -16,6 +20,8 @@ export interface QueueMetrics {
   inProgressCount: number;
   completedCount: number;
   averageWaitTime: number;
+  estimatedCompletionTime?: string;
+  totalDelayMinutes?: number;
 }
 
 export const useLiveQueue = (doctorId: string, serviceDay: string) => {
@@ -57,18 +63,29 @@ export const useLiveQueue = (doctorId: string, serviceDay: string) => {
 
       if (fetchError) throw fetchError;
 
-      const queueData = data || [];
-      setQueue(queueData);
+      const enhancedQueue = (data || []).map((appointment, index) => ({
+        ...appointment,
+        waitingTime: calculateWaitingTime(appointment),
+        estimatedDelay: calculateEstimatedDelay(appointment),
+        priority: determinePriority(appointment),
+      }));
+
+      setQueue(enhancedQueue);
 
       // Calculate metrics
       const metrics: QueueMetrics = {
-        totalAppointments: queueData.length,
-        checkedInCount: queueData.filter((a) => a.patient_checked_in).length,
-        inProgressCount: queueData.filter((a) => a.status === "In-Progress")
+        totalAppointments: enhancedQueue.length,
+        checkedInCount: enhancedQueue.filter((a) => a.patient_checked_in)
           .length,
-        completedCount: queueData.filter((a) => a.status === "Completed")
-          .length,
-        averageWaitTime: calculateAverageWaitTime(queueData),
+        inProgressCount: enhancedQueue.filter(
+          (a) => a.status === AppointmentStatus.IN_PROGRESS
+        ).length,
+        completedCount: enhancedQueue.filter(
+          (a) => a.status === AppointmentStatus.COMPLETED
+        ).length,
+        averageWaitTime: calculateAverageWaitTime(enhancedQueue),
+        estimatedCompletionTime: calculateEstimatedCompletion(enhancedQueue),
+        totalDelayMinutes: calculateTotalDelay(enhancedQueue),
       };
       setMetrics(metrics);
     } catch (err: unknown) {
@@ -81,29 +98,104 @@ export const useLiveQueue = (doctorId: string, serviceDay: string) => {
     }
   }, [user, doctorId, serviceDay]);
 
+  const calculateWaitingTime = (appointment: QueueAppointment): number => {
+    if (!appointment.checked_in_at || !appointment.actual_start_time) return 0;
+
+    const checkedIn = new Date(appointment.checked_in_at);
+    const started = new Date(appointment.actual_start_time);
+    return Math.max(
+      0,
+      Math.floor((started.getTime() - checkedIn.getTime()) / (1000 * 60))
+    );
+  };
+
+  const calculateEstimatedDelay = (appointment: QueueAppointment): number => {
+    if (!appointment.estimated_start_time) return 0;
+
+    const estimated = new Date(appointment.estimated_start_time);
+    const scheduled = new Date(appointment.appointment_datetime);
+    return Math.max(
+      0,
+      Math.floor((estimated.getTime() - scheduled.getTime()) / (1000 * 60))
+    );
+  };
+
+  const determinePriority = (
+    appointment: QueueAppointment
+  ): "normal" | "urgent" | "emergency" => {
+    const symptoms = appointment.symptoms?.toLowerCase() || "";
+    if (symptoms.includes("emergency") || symptoms.includes("critical"))
+      return "emergency";
+    if (symptoms.includes("urgent") || symptoms.includes("severe"))
+      return "urgent";
+    return "normal";
+  };
+
+  const calculateEstimatedCompletion = (
+    appointments: QueueAppointment[]
+  ): string => {
+    const inProgress = appointments.find(
+      (a) => a.status === AppointmentStatus.IN_PROGRESS
+    );
+    if (!inProgress) return "No active appointment";
+
+    const remaining = appointments.filter(
+      (a) =>
+        a.queue_position &&
+        inProgress.queue_position &&
+        a.queue_position > inProgress.queue_position
+    );
+
+    const totalMinutes = remaining.reduce(
+      (sum, apt) => sum + apt.duration_minutes,
+      0
+    );
+    const estimatedEnd = new Date(Date.now() + totalMinutes * 60000);
+
+    return estimatedEnd.toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
+
+  const calculateTotalDelay = (appointments: QueueAppointment[]): number => {
+    return appointments.reduce(
+      (total, apt) => total + (apt.estimatedDelay || 0),
+      0
+    );
+  };
+
   const calculateAverageWaitTime = (
     appointments: QueueAppointment[]
   ): number => {
-    const completedWithTimes = appointments.filter(
-      (a) =>
-        a.status === "Completed" &&
-        a.actual_start_time &&
-        a.estimated_start_time
+    const waitTimes = appointments
+      .map((a) => a.waitingTime || 0)
+      .filter((time) => time > 0);
+
+    if (waitTimes.length === 0) return 0;
+    return Math.round(
+      waitTimes.reduce((sum, time) => sum + time, 0) / waitTimes.length
     );
+  };
 
-    if (completedWithTimes.length === 0) return 0;
+  const handleDoctorDelay = async (delayMinutes: number) => {
+    try {
+      // This will trigger the database function to update all appointments
+      const { data, error } = await supabase.rpc("add_doctor_delay", {
+        p_doctor_id: doctorId,
+        p_service_date: serviceDay,
+        p_delay_minutes: delayMinutes,
+      });
 
-    const totalWaitTime = completedWithTimes.reduce((sum, appointment) => {
-      const estimatedStart = new Date(appointment.estimated_start_time!);
-      const actualStart = new Date(appointment.actual_start_time!);
-      const waitTime = Math.max(
-        0,
-        actualStart.getTime() - estimatedStart.getTime()
-      );
-      return sum + waitTime;
-    }, 0);
+      if (error) throw error;
 
-    return Math.round(totalWaitTime / completedWithTimes.length / (1000 * 60)); // Convert to minutes
+      await fetchQueue(); // Refresh the queue
+      return { success: true, data };
+    } catch (err: any) {
+      console.error("Error applying doctor delay:", err);
+      return { success: false, error: err.message };
+    }
   };
 
   useEffect(() => {
@@ -271,6 +363,7 @@ export const useLiveQueue = (doctorId: string, serviceDay: string) => {
       completeAppointment,
       cancelAppointment,
       recalculateQueue,
+      handleDoctorDelay,
       refresh: fetchQueue,
     },
   };

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback } from "react";
 import {
   Clock,
@@ -16,7 +17,6 @@ import { Button } from "./ui/Button";
 import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
 import { Card, CardContent } from "./ui/Card";
-import { Badge } from "./ui/Badge";
 import { MetricCard } from "./ui/MetricCard";
 import { AppointmentService } from "../services/AppointmentService";
 import { AppointmentStatus } from "../constants";
@@ -24,6 +24,8 @@ import { useAuth } from "../hooks/useAuth";
 import { Appointment, Doctor } from "../types";
 import { format } from "date-fns";
 import { supabase } from "../lib/supabase";
+import { QueueManagementModal } from "./QueueManagementModal";
+import { toast } from "sonner";
 
 export function QueueTab() {
   const [queueData, setQueueData] = useState<Appointment[]>([]);
@@ -36,7 +38,16 @@ export function QueueTab() {
   );
   const [refreshing, setRefreshing] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [queueManagementOpen, setQueueManagementOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"active" | "completed">("active");
   const { user } = useAuth();
+
+  // Auto-select first doctor when doctors are loaded
+  useEffect(() => {
+    if (doctors.length > 0 && !selectedDoctor) {
+      setSelectedDoctor(doctors[0].id);
+    }
+  }, [doctors, selectedDoctor]);
 
   const fetchDoctors = useCallback(async () => {
     if (!user?.id) return;
@@ -58,7 +69,7 @@ export function QueueTab() {
   }, [user?.id]);
 
   const fetchQueue = useCallback(async () => {
-    if (!user?.id) return;
+    if (!user?.id || !selectedDoctor) return;
 
     try {
       setLoading(true);
@@ -69,9 +80,9 @@ export function QueueTab() {
         user_id: user.id,
       });
 
-      // Use AppointmentService instead of direct Supabase calls
+      // Use AppointmentService - always filter by doctor in queue tab
       const response = await AppointmentService.getAppointments({
-        doctorId: selectedDoctor || undefined,
+        doctorId: selectedDoctor, // Always require doctor selection
         date:
           selectedDate && selectedDate.trim() !== "" ? selectedDate : undefined,
         searchTerm: searchTerm || undefined,
@@ -105,10 +116,114 @@ export function QueueTab() {
     fetchQueue();
   }, [selectedDoctor, selectedDate, searchTerm, fetchQueue]);
 
+  // Real-time subscription for queue updates
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const channel = supabase
+      .channel(`queue-updates-${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "appointments",
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log("Real-time queue update:", payload);
+          fetchQueue();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, fetchQueue]);
+
+  // Queue recalculation function with toast notifications
+  const recalculateQueuePositions = async (
+    doctorId: string,
+    date: string,
+    showToast: boolean = true
+  ) => {
+    if (showToast) {
+      toast.loading("Recalculating queue positions...", { id: "queue-recalc" });
+    }
+
+    try {
+      const startTime = new Date(`${date}T00:00:00`);
+      const endTime = new Date(`${date}T23:59:59`);
+
+      // Fetch all active appointments for the doctor on this date (excluding completed)
+      const { data: appointments, error: fetchError } = await (supabase as any)
+        .from("appointments")
+        .select("*")
+        .eq("doctor_id", doctorId)
+        .gte("appointment_datetime", startTime.toISOString())
+        .lt("appointment_datetime", endTime.toISOString())
+        .neq("status", AppointmentStatus.COMPLETED) // Exclude completed appointments
+        .order("emergency_status", { ascending: false }) // Emergency first
+        .order("appointment_datetime", { ascending: true }); // Then by time
+
+      if (fetchError) throw fetchError;
+
+      if (!appointments || appointments.length === 0) {
+        if (showToast) {
+          toast.success("Queue updated (no active appointments)", {
+            id: "queue-recalc",
+          });
+        }
+        return;
+      }
+
+      // Recalculate queue positions properly
+      let estimatedTime = new Date(`${date}T09:00:00`); // Start at 9 AM
+
+      const updates = appointments.map((appointment: any, index: number) => {
+        const queuePosition = index + 1; // Sequential numbering: 1, 2, 3, 4...
+        const estimatedStartTime = new Date(estimatedTime);
+
+        // Add appointment duration to estimated time for next appointment
+        estimatedTime = new Date(
+          estimatedStartTime.getTime() +
+            (appointment.duration_minutes || 30) * 60000
+        );
+
+        return (supabase as any)
+          .from("appointments")
+          .update({
+            queue_position: queuePosition,
+            estimated_start_time: estimatedStartTime.toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", appointment.id);
+      });
+
+      await Promise.all(updates);
+
+      if (showToast) {
+        toast.success(
+          `Queue recalculated for ${appointments.length} active appointments`,
+          { id: "queue-recalc" }
+        );
+      }
+    } catch (error) {
+      console.error("Error recalculating queue positions:", error);
+      if (showToast) {
+        toast.error("Failed to recalculate queue positions", {
+          id: "queue-recalc",
+        });
+      }
+    }
+  };
+
   const updateAppointmentStatus = async (
     id: string,
     status: string,
-    updates: Record<string, string | boolean | null> = {}
+    updates: Record<string, string | boolean | null> = {},
+    appointment?: Appointment
   ) => {
     try {
       setActionLoading(id);
@@ -126,6 +241,23 @@ export function QueueTab() {
 
       if (error) throw error;
 
+      // Trigger queue recalculation for status changes that affect queue order
+      if (
+        appointment &&
+        (status === AppointmentStatus.IN_PROGRESS ||
+          status === AppointmentStatus.CHECKED_IN)
+      ) {
+        const appointmentDate = new Date(appointment.appointment_datetime)
+          .toISOString()
+          .split("T")[0];
+        // Recalculate without toast for minor status changes
+        await recalculateQueuePositions(
+          appointment.doctor_id,
+          appointmentDate,
+          false
+        );
+      }
+
       await fetchQueue();
     } catch (error) {
       console.error("Error updating appointment:", error);
@@ -136,22 +268,64 @@ export function QueueTab() {
   };
 
   const checkInPatient = (appointment: Appointment) => {
-    updateAppointmentStatus(appointment.id, AppointmentStatus.CHECKED_IN, {
-      patient_checked_in: true,
-      checked_in_at: new Date().toISOString(),
-    });
+    updateAppointmentStatus(
+      appointment.id,
+      AppointmentStatus.CHECKED_IN,
+      {
+        patient_checked_in: true,
+        checked_in_at: new Date().toISOString(),
+      },
+      appointment
+    );
   };
 
   const startAppointment = (appointment: Appointment) => {
-    updateAppointmentStatus(appointment.id, AppointmentStatus.IN_PROGRESS, {
-      actual_start_time: new Date().toISOString(),
-    });
+    updateAppointmentStatus(
+      appointment.id,
+      AppointmentStatus.IN_PROGRESS,
+      {
+        actual_start_time: new Date().toISOString(),
+      },
+      appointment
+    );
   };
 
-  const completeAppointment = (appointment: Appointment) => {
-    updateAppointmentStatus(appointment.id, AppointmentStatus.COMPLETED, {
-      actual_end_time: new Date().toISOString(),
-    });
+  const completeAppointment = async (appointment: Appointment) => {
+    try {
+      setActionLoading(appointment.id);
+
+      const updateData = {
+        status: AppointmentStatus.COMPLETED,
+        actual_end_time: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await (supabase as any)
+        .from("appointments")
+        .update(updateData)
+        .eq("id", appointment.id);
+
+      if (error) throw error;
+
+      // Automatically recalculate queue positions after completion
+      if (appointment.doctor_id && appointment.appointment_datetime) {
+        const appointmentDate = new Date(appointment.appointment_datetime)
+          .toISOString()
+          .split("T")[0];
+        await recalculateQueuePositions(
+          appointment.doctor_id,
+          appointmentDate,
+          true
+        );
+      }
+
+      await fetchQueue();
+    } catch (error) {
+      console.error("Error completing appointment:", error);
+      alert("Error completing appointment");
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const getStatusColor = (status: string, checkedIn: boolean) => {
@@ -268,28 +442,38 @@ export function QueueTab() {
     return searchMatch && matchesDoctor;
   });
 
+  // Separate active and completed appointments
+  const activeAppointments = filteredQueue.filter(
+    (appointment) => appointment.status !== AppointmentStatus.COMPLETED
+  );
+
+  const completedAppointments = filteredQueue.filter(
+    (appointment) => appointment.status === AppointmentStatus.COMPLETED
+  );
+
+  // Get current appointments based on active tab
+  const currentAppointments =
+    activeTab === "active" ? activeAppointments : completedAppointments;
+
   const queueStats = {
-    total: queueData.length,
-    checkedIn: queueData.filter(
+    total: activeAppointments.length, // Only count active appointments in queue
+    checkedIn: activeAppointments.filter(
       (a) => a.patient_checked_in || a.status === AppointmentStatus.CHECKED_IN
     ).length,
-    inProgress: queueData.filter(
+    inProgress: activeAppointments.filter(
       (a) => a.status === AppointmentStatus.IN_PROGRESS
     ).length,
-    completed: queueData.filter((a) => a.status === AppointmentStatus.COMPLETED)
-      .length,
+    completed: completedAppointments.length, // Completed appointments count
   };
 
   const stats = {
-    scheduled: filteredQueue.filter(
+    scheduled: activeAppointments.filter(
       (a) => a.status === AppointmentStatus.SCHEDULED
     ).length,
-    inProgress: filteredQueue.filter(
+    inProgress: activeAppointments.filter(
       (a) => a.status === AppointmentStatus.IN_PROGRESS
     ).length,
-    completed: filteredQueue.filter(
-      (a) => a.status === AppointmentStatus.COMPLETED
-    ).length,
+    completed: completedAppointments.length,
   };
 
   if (loading) {
@@ -342,9 +526,48 @@ export function QueueTab() {
         />
       </div>
 
-      {/* Queue Controls */}
+      {/* Tab Navigation */}
       <Card>
         <CardContent className="py-4">
+          <div className="flex items-center justify-between mb-4">
+            {/* Tab Buttons */}
+            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
+              <button
+                onClick={() => setActiveTab("active")}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                  activeTab === "active"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Active Queue ({activeAppointments.length})
+              </button>
+              <button
+                onClick={() => setActiveTab("completed")}
+                className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                  activeTab === "completed"
+                    ? "bg-white text-green-600 shadow-sm"
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Completed ({completedAppointments.length})
+              </button>
+            </div>
+
+            {/* Queue Management Button */}
+            {selectedDoctor && activeTab === "active" && (
+              <Button
+                onClick={() => setQueueManagementOpen(true)}
+                variant="outline"
+                size="sm"
+                className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+              >
+                <Activity className="h-4 w-4 mr-2" />
+                Queue Management
+              </Button>
+            )}
+          </div>
+
           <div className="flex flex-col lg:flex-row lg:items-center gap-4">
             {/* Search Input */}
             <div className="relative flex-1">
@@ -373,12 +596,13 @@ export function QueueTab() {
                 onChange={(e) => setSelectedDoctor(e.target.value)}
                 className="min-w-[150px]"
                 options={[
-                  { value: "", label: "All Doctors" },
+                  { value: "", label: "Select Doctor" },
                   ...doctors.map((doctor) => ({
                     value: doctor.id,
                     label: `Dr. ${doctor.name}`,
                   })),
                 ]}
+                required
               />
 
               <input
@@ -404,24 +628,20 @@ export function QueueTab() {
                 </Button>
               )}
 
-              <div className="flex items-center space-x-2">
-                <Button
-                  onClick={() => {
-                    setRefreshing(true);
-                    fetchQueue();
-                  }}
-                  disabled={refreshing}
-                  variant="outline"
-                  size="sm"
-                >
-                  <RefreshCw
-                    className={`h-4 w-4 mr-2 ${
-                      refreshing ? "animate-spin" : ""
-                    }`}
-                  />
-                  Refresh
-                </Button>
-              </div>
+              <Button
+                onClick={() => {
+                  setRefreshing(true);
+                  fetchQueue();
+                }}
+                disabled={refreshing}
+                variant="outline"
+                size="sm"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
+                />
+                Refresh
+              </Button>
             </div>
           </div>
 
@@ -429,28 +649,34 @@ export function QueueTab() {
           <div className="flex flex-wrap gap-6 pt-4 border-t border-gray-100 mt-4">
             <div className="text-sm text-gray-600">
               <span className="font-medium text-gray-900">
-                {filteredQueue.length}
+                {currentAppointments.length}
               </span>{" "}
-              appointments
+              {activeTab === "active" ? "in queue" : "completed"}
             </div>
-            <div className="text-sm text-gray-600">
-              <span className="font-medium text-green-600">
-                {stats.completed}
-              </span>{" "}
-              completed
-            </div>
-            <div className="text-sm text-gray-600">
-              <span className="font-medium text-blue-600">
-                {stats.scheduled}
-              </span>{" "}
-              scheduled
-            </div>
-            <div className="text-sm text-gray-600">
-              <span className="font-medium text-orange-600">
-                {stats.inProgress}
-              </span>{" "}
-              in progress
-            </div>
+            {activeTab === "active" && (
+              <>
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium text-blue-600">
+                    {stats.scheduled}
+                  </span>{" "}
+                  scheduled
+                </div>
+                <div className="text-sm text-gray-600">
+                  <span className="font-medium text-orange-600">
+                    {stats.inProgress}
+                  </span>{" "}
+                  in progress
+                </div>
+              </>
+            )}
+            {activeTab === "completed" && (
+              <div className="text-sm text-gray-600">
+                <span className="font-medium text-green-600">
+                  {stats.completed}
+                </span>{" "}
+                total completed today
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -465,23 +691,25 @@ export function QueueTab() {
             />
           ))}
         </div>
-      ) : queueData.length === 0 ? (
+      ) : currentAppointments.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Calendar className="h-12 w-12 mx-auto text-gray-400 mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No appointments found
+              {activeTab === "active"
+                ? "No active appointments"
+                : "No completed appointments"}
             </h3>
             <p className="text-gray-500">
               {selectedDoctor || selectedDate
-                ? "No appointments found for the selected filters."
-                : "No appointments scheduled yet."}
+                ? `No ${activeTab} appointments found for the selected filters.`
+                : `No ${activeTab} appointments yet.`}
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
-          {queueData.map((appointment, index) => (
+          {currentAppointments.map((appointment) => (
             <Card
               key={appointment.id}
               className="hover:shadow-md transition-shadow"
@@ -489,13 +717,16 @@ export function QueueTab() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                        <span className="text-sm font-semibold text-blue-600">
-                          #{index + 1}
-                        </span>
+                    {/* Only show queue position for active appointments */}
+                    {activeTab === "active" && (
+                      <div className="flex-shrink-0">
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-sm font-semibold text-blue-600">
+                            #{appointment.queue_position || 0}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-3">
@@ -513,6 +744,11 @@ export function QueueTab() {
                             ? AppointmentStatus.CHECKED_IN
                             : appointment.status}
                         </span>
+                        {appointment.emergency_status && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800 border border-red-200">
+                            🚨 EMERGENCY
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center space-x-4 mt-1 text-sm text-gray-500">
@@ -538,9 +774,22 @@ export function QueueTab() {
                   </div>
 
                   <div className="flex items-center space-x-2">
-                    {getActionButton(appointment)}
+                    {/* Only show action buttons for active appointments */}
+                    {activeTab === "active" && getActionButton(appointment)}
                   </div>
                 </div>
+
+                {appointment.emergency_status &&
+                  appointment.emergency_reason && (
+                    <div className="mt-3 pt-3 border-t border-red-200">
+                      <p className="text-sm text-red-700">
+                        <span className="font-medium">
+                          🚨 Emergency Reason:
+                        </span>{" "}
+                        {appointment.emergency_reason}
+                      </p>
+                    </div>
+                  )}
 
                 {appointment.symptoms && (
                   <div className="mt-3 pt-3 border-t border-gray-200">
@@ -564,6 +813,16 @@ export function QueueTab() {
           ))}
         </div>
       )}
+
+      {/* Queue Management Modal */}
+      <QueueManagementModal
+        isOpen={queueManagementOpen}
+        onClose={() => setQueueManagementOpen(false)}
+        selectedDoctor={selectedDoctor}
+        selectedDate={selectedDate}
+        doctors={doctors}
+        onRefreshQueue={fetchQueue}
+      />
     </div>
   );
 }

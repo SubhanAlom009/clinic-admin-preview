@@ -343,11 +343,26 @@ export const AppointmentDetailsModal: React.FC<
                 Medical History
               </h4>
               <div className="text-gray-700 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                {typeof appointment.patient.medical_history === "string"
-                  ? appointment.patient.medical_history
-                  : Array.isArray(appointment.patient.medical_history)
-                  ? (appointment.patient.medical_history as string[]).join(", ")
-                  : JSON.stringify(appointment.patient.medical_history)}
+                {(() => {
+                  const history = appointment.patient.medical_history;
+                  if (typeof history === "string") {
+                    return history;
+                  } else if (Array.isArray(history)) {
+                    return (history as string[]).join(", ");
+                  } else if (typeof history === "object" && history !== null) {
+                    // Handle JSON object - extract meaningful fields
+                    const entries = Object.entries(history);
+                    return entries
+                      .map(
+                        ([key, value]) =>
+                          `${key}: ${
+                            Array.isArray(value) ? value.join(", ") : value
+                          }`
+                      )
+                      .join(" | ");
+                  }
+                  return "No medical history available";
+                })()}
               </div>
             </div>
           )}
@@ -468,7 +483,7 @@ export const AppointmentDetailsModal: React.FC<
                         </p>
                       </div>
                     )}
-                  {appointment.estimated_start_time &&
+                  {/* {appointment.estimated_start_time &&
                     appointment.actual_start_time && (
                       <div className="bg-yellow-50 p-3 rounded-lg">
                         <p className="text-yellow-700 font-medium">
@@ -489,25 +504,7 @@ export const AppointmentDetailsModal: React.FC<
                             : "early"}
                         </p>
                       </div>
-                    )}
-                  {appointment.appointment_datetime &&
-                    appointment.actual_end_time && (
-                      <div className="bg-purple-50 p-3 rounded-lg">
-                        <p className="text-purple-700 font-medium">
-                          Total Time
-                        </p>
-                        <p className="text-purple-600">
-                          {Math.round(
-                            (new Date(appointment.actual_end_time).getTime() -
-                              new Date(
-                                appointment.appointment_datetime
-                              ).getTime()) /
-                              (1000 * 60)
-                          )}{" "}
-                          minutes (scheduled to completion)
-                        </p>
-                      </div>
-                    )}
+                    )} */}
                 </div>
               </div>
             )}

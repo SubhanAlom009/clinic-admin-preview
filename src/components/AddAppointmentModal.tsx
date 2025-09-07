@@ -1,12 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
-import { X, Calendar, Clock } from "lucide-react";
+import { X, Calendar } from "lucide-react";
 import { Button } from "./ui/Button";
-import { Input } from "./ui/Input";
-import { Select } from "./ui/Select";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { AppointmentStatus } from "../constants";
-import { AppointmentService } from "../services/AppointmentService";
 import { Patient, Doctor } from "../types";
 
 interface AddAppointmentModalProps {
@@ -23,7 +21,9 @@ export function AddAppointmentModal({
     doctor_id: "",
     appointment_datetime: "",
     duration_minutes: "30",
+    appointment_type: "Consultation",
     notes: "",
+    symptoms: "", // Add symptoms field
   });
   const [patients, setPatients] = useState<Patient[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -100,7 +100,9 @@ export function AddAppointmentModal({
           formData.appointment_datetime
         ).toISOString(),
         duration_minutes: parseInt(formData.duration_minutes),
+        appointment_type: formData.appointment_type,
         notes: formData.notes || null,
+        symptoms: formData.symptoms || null, // Add symptoms to appointment data
         status: AppointmentStatus.SCHEDULED,
       };
 
@@ -112,7 +114,7 @@ export function AddAppointmentModal({
         appointmentData.status === AppointmentStatus.SCHEDULED
       );
 
-      const { data, error: insertError } = await supabase
+      const { data, error: insertError } = await (supabase as any)
         .from("appointments")
         .insert(appointmentData)
         .select()
@@ -130,16 +132,18 @@ export function AddAppointmentModal({
       const serviceDay = appointmentDate.toISOString().split("T")[0]; // Get YYYY-MM-DD format
 
       try {
-        const { error: queueError } = await supabase.from("job_queue").insert({
-          job_type: "RECALCULATE_QUEUE",
-          payload: {
-            doctor_id: formData.doctor_id,
-            service_day: serviceDay,
-            trigger: "appointment_creation",
-          },
-          priority: 1,
-          scheduled_for: new Date().toISOString(),
-        });
+        const { error: queueError } = await (supabase as any)
+          .from("job_queue")
+          .insert({
+            job_type: "RECALCULATE_QUEUE",
+            payload: {
+              doctor_id: formData.doctor_id,
+              service_day: serviceDay,
+              trigger: "appointment_creation",
+            },
+            priority: 1,
+            scheduled_for: new Date().toISOString(),
+          });
 
         if (queueError) {
           console.warn("Queue recalculation job creation failed:", queueError);
@@ -155,7 +159,7 @@ export function AddAppointmentModal({
       const patient = patients.find((p) => p.id === formData.patient_id);
       const doctor = doctors.find((d) => d.id === formData.doctor_id);
 
-      await supabase.from("notifications").insert({
+      await (supabase as any).from("notifications").insert({
         user_id: user.id,
         type: "appointment",
         title: "New Appointment Scheduled",
@@ -169,7 +173,9 @@ export function AddAppointmentModal({
         doctor_id: "",
         appointment_datetime: "",
         duration_minutes: "30",
+        appointment_type: "Consultation",
         notes: "",
+        symptoms: "", // Include symptoms in reset
       });
     } catch (err: any) {
       console.error("Error in handleSubmit:", err);
@@ -275,9 +281,26 @@ export function AddAppointmentModal({
                 value={formData.appointment_datetime}
                 onChange={handleInputChange}
                 min={minDateTime}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 required
+                style={{
+                  colorScheme: "light",
+                  WebkitAppearance: "none",
+                  MozAppearance: "textfield",
+                }}
+                onClick={(e) => {
+                  // Force focus and show picker
+                  e.currentTarget.focus();
+                  e.currentTarget.showPicker?.();
+                }}
+                onFocus={(e) => {
+                  // Show picker on focus
+                  e.currentTarget.showPicker?.();
+                }}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Click to select date and time
+              </p>
             </div>
 
             <div>
@@ -298,11 +321,50 @@ export function AddAppointmentModal({
                 <option value="120">2 hours</option>
               </select>
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Appointment Type
+              </label>
+              <select
+                name="appointment_type"
+                value={formData.appointment_type}
+                onChange={handleInputChange}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Consultation">Consultation</option>
+                <option value="Follow-up">Follow-up</option>
+                <option value="Emergency">Emergency</option>
+                <option value="Routine Checkup">Routine Checkup</option>
+                <option value="Specialist Consultation">
+                  Specialist Consultation
+                </option>
+                <option value="Procedure">Procedure</option>
+                <option value="Surgery">Surgery</option>
+              </select>
+            </div>
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Notes
+              Symptoms
+            </label>
+            <textarea
+              name="symptoms"
+              value={formData.symptoms}
+              onChange={handleInputChange}
+              rows={3}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Describe the patient's symptoms (e.g., fever, headache, cough)"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              This helps the doctor prepare for the consultation
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Additional Notes
             </label>
             <textarea
               name="notes"

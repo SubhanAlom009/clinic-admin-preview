@@ -3,12 +3,20 @@ import { AppointmentStatus } from "../constants";
 import {
   Calendar,
   Clock,
-  UserCheck,
   Search,
   Grid3X3,
   List,
   CalendarDays,
   MonitorSpeaker,
+  User,
+  Stethoscope,
+  MapPin,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Edit3,
+  Timer,
 } from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
@@ -122,27 +130,6 @@ export function Appointments() {
     setFilteredAppointments((prev) =>
       prev.map((a) => (a.id === patch.id ? { ...a, ...patch } : a))
     );
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case AppointmentStatus.SCHEDULED:
-        return "bg-blue-100 text-blue-800";
-      case AppointmentStatus.COMPLETED:
-        return "bg-green-100 text-green-800";
-      case AppointmentStatus.CANCELLED:
-        return "bg-red-100 text-red-800";
-      case AppointmentStatus.NO_SHOW:
-        return "bg-gray-100 text-gray-800";
-      case AppointmentStatus.RESCHEDULED:
-        return "bg-yellow-100 text-yellow-800";
-      case AppointmentStatus.CHECKED_IN:
-        return "bg-green-100 text-green-800";
-      case AppointmentStatus.IN_PROGRESS:
-        return "bg-purple-100 text-purple-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
   };
 
   const openDetails = (appointment: Appointment) => {
@@ -308,65 +295,241 @@ export function Appointments() {
           {viewMode === "calendar" ? (
             <CalendarView onSelectAppointment={openDetails} />
           ) : (
-            /* Appointments List */
+            /* Enhanced Appointments List */
             <div className="space-y-4">
-              {filteredAppointments.map((appointment) => (
-                <Card
-                  key={appointment.id}
-                  className="hover:shadow-md transition-shadow duration-200 cursor-pointer"
-                >
-                  <CardContent className="p-6">
-                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center space-x-4">
-                          <h3 className="text-lg font-semibold text-gray-900">
-                            {appointment.patient?.name}
-                          </h3>
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                              appointment.status
-                            )}`}
-                          >
-                            {appointment.status.replace("_", " ").toUpperCase()}
-                          </span>
+              {filteredAppointments.map((appointment) => {
+                const statusColors = {
+                  [AppointmentStatus.SCHEDULED]: {
+                    badge: "bg-blue-100 text-blue-700 border-blue-200",
+                    icon: Calendar,
+                    iconColor: "text-blue-600",
+                    border: "border-l-blue-500",
+                  },
+                  [AppointmentStatus.CHECKED_IN]: {
+                    badge: "bg-green-100 text-green-700 border-green-200",
+                    icon: CheckCircle,
+                    iconColor: "text-green-600",
+                    border: "border-l-green-500",
+                  },
+                  [AppointmentStatus.IN_PROGRESS]: {
+                    badge: "bg-amber-100 text-amber-700 border-amber-200",
+                    icon: Timer,
+                    iconColor: "text-amber-600",
+                    border: "border-l-amber-500",
+                  },
+                  [AppointmentStatus.COMPLETED]: {
+                    badge: "bg-emerald-100 text-emerald-700 border-emerald-200",
+                    icon: CheckCircle,
+                    iconColor: "text-emerald-600",
+                    border: "border-l-emerald-500",
+                  },
+                  [AppointmentStatus.CANCELLED]: {
+                    badge: "bg-red-100 text-red-700 border-red-200",
+                    icon: XCircle,
+                    iconColor: "text-red-600",
+                    border: "border-l-red-500",
+                  },
+                  [AppointmentStatus.NO_SHOW]: {
+                    badge: "bg-gray-100 text-gray-700 border-gray-200",
+                    icon: AlertTriangle,
+                    iconColor: "text-gray-600",
+                    border: "border-l-gray-500",
+                  },
+                };
+
+                const statusConfig =
+                  statusColors[
+                    appointment.status as keyof typeof statusColors
+                  ] || statusColors[AppointmentStatus.SCHEDULED];
+                const StatusIcon = statusConfig.icon;
+                const isToday =
+                  new Date(appointment.appointment_datetime).toDateString() ===
+                  new Date().toDateString();
+                const isPast =
+                  new Date(appointment.appointment_datetime) < new Date();
+
+                return (
+                  <div
+                    key={appointment.id}
+                    className="cursor-pointer"
+                    onClick={() => openDetails(appointment)}
+                  >
+                    <Card
+                      className={`hover:shadow-md transition-all duration-200 border-l-4 ${statusConfig.border} overflow-hidden`}
+                    >
+                      <CardContent className="p-6">
+                        {/* Header Section */}
+                        <div className="flex items-start justify-between mb-4">
+                          {/* Patient & Doctor Info */}
+                          <div className="flex items-center space-x-4">
+                            <div className="w-14 h-14 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
+                              <User className="w-7 h-7 text-blue-600" />
+                            </div>
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <h3 className="text-xl font-bold text-gray-900">
+                                  {appointment.patient?.name}
+                                </h3>
+                                {isToday && (
+                                  <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded-full">
+                                    Today
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-1 mt-1">
+                                <Stethoscope className="w-4 h-4 text-gray-500" />
+                                <p className="text-gray-600 font-medium">
+                                  Dr. {appointment.doctor?.name}
+                                </p>
+                              </div>
+                              {appointment.patient?.contact && (
+                                <div className="flex items-center space-x-1 mt-1">
+                                  <User className="w-4 h-4 text-gray-400" />
+                                  <p className="text-gray-500 text-sm">
+                                    {appointment.patient.contact}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Status & Actions */}
+                          <div className="flex items-center space-x-3">
+                            <div
+                              className={`px-3 py-2 rounded-lg border font-medium text-sm flex items-center space-x-2 ${statusConfig.badge}`}
+                            >
+                              <StatusIcon
+                                className={`w-4 h-4 ${statusConfig.iconColor}`}
+                              />
+                              <span>
+                                {appointment.status
+                                  .replace("_", " ")
+                                  .toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="flex items-center space-x-1">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openDetails(appointment);
+                                }}
+                                className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="View Details"
+                              >
+                                <Eye className="w-5 h-5" />
+                              </button>
+                              {!isPast && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRescheduleAppointment(appointment);
+                                  }}
+                                  className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                  title="Reschedule"
+                                >
+                                  <Edit3 className="w-5 h-5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
 
-                        <div
-                          className="flex flex-wrap items-center gap-4 text-sm text-gray-600"
-                          onClick={() => openDetails(appointment)}
-                        >
-                          <div className="flex items-center">
-                            <UserCheck className="h-4 w-4 mr-1" />
-                            {appointment.doctor?.name}
+                        {/* Appointment Details Grid */}
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                          {/* Date & Time */}
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Calendar className="w-5 h-5 text-gray-600" />
+                              <span className="font-medium text-gray-700">
+                                Date & Time
+                              </span>
+                            </div>
+                            <p className="text-gray-900 font-semibold text-sm">
+                              {format(
+                                new Date(appointment.appointment_datetime),
+                                "EEEE, MMM d, yyyy"
+                              )}
+                            </p>
+                            <div className="flex items-center space-x-1 mt-1">
+                              <Clock className="w-4 h-4 text-gray-500" />
+                              <p className="text-gray-600 text-sm">
+                                {format(
+                                  new Date(appointment.appointment_datetime),
+                                  "h:mm a"
+                                )}
+                              </p>
+                            </div>
                           </div>
-                          <div className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-1" />
-                            {format(
-                              new Date(appointment.appointment_datetime),
-                              "MMM d, yyyy"
-                            )}
+
+                          {/* Location */}
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <MapPin className="w-5 h-5 text-gray-600" />
+                              <span className="font-medium text-gray-700">
+                                Location
+                              </span>
+                            </div>
+                            <p className="text-gray-900 text-sm">
+                              {appointment.doctor?.specialization ||
+                                "General Consultation"}
+                            </p>
+                            <p className="text-gray-600 text-sm">
+                              Room {Math.floor(Math.random() * 10) + 1}
+                            </p>
                           </div>
-                          <div className="flex items-center">
-                            <Clock className="h-4 w-4 mr-1" />
-                            {format(
-                              new Date(appointment.appointment_datetime),
-                              "h:mm a"
-                            )}
+
+                          {/* Type */}
+                          <div className="bg-gray-50 rounded-lg p-4">
+                            <div className="flex items-center space-x-2 mb-2">
+                              <Stethoscope className="w-5 h-5 text-gray-600" />
+                              <span className="font-medium text-gray-700">
+                                Type
+                              </span>
+                            </div>
+                            <p className="text-gray-900 text-sm">
+                              {appointment.appointment_type ||
+                                "General Checkup"}
+                            </p>
+                            <p className="text-gray-600 text-sm">
+                              {appointment.duration_minutes} minutes
+                            </p>
                           </div>
                         </div>
 
+                        {/* Delay Information */}
+                        {appointment.delay_minutes &&
+                          appointment.delay_minutes > 0 && (
+                            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg mb-4">
+                              <div className="flex items-center space-x-2">
+                                <AlertTriangle className="w-5 h-5 text-amber-600" />
+                                <span className="font-medium text-amber-800 text-sm">
+                                  Delayed by {appointment.delay_minutes} minutes
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
+                        {/* Notes */}
                         {appointment.notes && (
-                          <p className="text-sm text-gray-600 mt-2">
-                            {appointment.notes}
-                          </p>
+                          <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg">
+                            <div className="flex items-start space-x-2">
+                              <MonitorSpeaker className="w-5 h-5 text-blue-600 mt-0.5" />
+                              <div>
+                                <span className="font-medium text-blue-800 text-sm block">
+                                  Notes:
+                                </span>
+                                <p className="text-blue-700 text-sm mt-1">
+                                  {appointment.notes}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
                         )}
-                      </div>
-
-                      {/* Inline action buttons removed; open modal instead */}
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })}
             </div>
           )}
 

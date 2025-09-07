@@ -1,8 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
-import { Modal } from "./ui/Modal";
+import { FormModal } from "./ui/FormModal";
 import { Input } from "./ui/Input";
 import { Select } from "./ui/Select";
-import { Button } from "./ui/Button";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { Patient } from "../types";
@@ -26,7 +26,13 @@ export function EditPatientModal({
     email: "",
     address: "",
     emergency_contact: "",
-    medical_history: "",
+    // Structured medical history fields
+    allergies: "",
+    chronic_conditions: "",
+    medications: "",
+    previous_surgeries: "",
+    family_history: "",
+    additional_notes: "",
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -34,6 +40,12 @@ export function EditPatientModal({
 
   useEffect(() => {
     if (patient) {
+      // Convert arrays back to strings for editing
+      const allergiesText = patient.allergies?.join("\n") || "";
+      const conditionsText = patient.chronic_conditions?.join("\n") || "";
+      const medicationsText = patient.medications?.join("\n") || "";
+      const surgeriesText = patient.previous_surgeries?.join("\n") || "";
+
       setFormData({
         name: patient.name,
         age: patient.age?.toString() || "",
@@ -42,9 +54,12 @@ export function EditPatientModal({
         email: patient.email || "",
         address: patient.address || "",
         emergency_contact: patient.emergency_contact || "",
-        medical_history: patient.medical_history
-          ? JSON.stringify(patient.medical_history, null, 2)
-          : "",
+        allergies: allergiesText,
+        chronic_conditions: conditionsText,
+        medications: medicationsText,
+        previous_surgeries: surgeriesText,
+        family_history: patient.family_history || "",
+        additional_notes: patient.additional_notes || "",
       });
     }
   }, [patient]);
@@ -53,20 +68,43 @@ export function EditPatientModal({
     e.preventDefault();
     if (!user || !patient) return;
 
+    // Validate required fields
+    if (!formData.name.trim()) {
+      setError("Patient name is required");
+      return;
+    }
+    if (!formData.contact.trim()) {
+      setError("Contact number is required");
+      return;
+    }
+    if (
+      formData.age &&
+      (parseInt(formData.age) < 0 || parseInt(formData.age) > 150)
+    ) {
+      setError("Please enter a valid age between 0 and 150");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
     try {
-      let medicalHistory = {};
-      if (formData.medical_history.trim()) {
-        try {
-          medicalHistory = JSON.parse(formData.medical_history);
-        } catch {
-          medicalHistory = { notes: formData.medical_history };
-        }
-      }
+      // Build structured medical history object
+      const medicalHistory = {
+        allergies: formData.allergies.trim() || null,
+        chronic_conditions: formData.chronic_conditions.trim() || null,
+        medications: formData.medications.trim() || null,
+        previous_surgeries: formData.previous_surgeries.trim() || null,
+        family_history: formData.family_history.trim() || null,
+        additional_notes: formData.additional_notes.trim() || null,
+      };
 
-      const { error } = await supabase
+      // Remove null values
+      const cleanedHistory = Object.fromEntries(
+        Object.entries(medicalHistory).filter(([, value]) => value !== null)
+      );
+
+      const { error } = await (supabase as any)
         .from("patients")
         .update({
           name: formData.name,
@@ -76,7 +114,34 @@ export function EditPatientModal({
           email: formData.email || null,
           address: formData.address || null,
           emergency_contact: formData.emergency_contact || null,
-          medical_history: medicalHistory,
+          medical_history:
+            Object.keys(cleanedHistory).length > 0 ? cleanedHistory : null,
+          medications: formData.medications
+            ? formData.medications
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : null,
+          previous_surgeries: formData.previous_surgeries
+            ? formData.previous_surgeries
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : null,
+          family_history: formData.family_history || null,
+          additional_notes: formData.additional_notes || null,
+          allergies: formData.allergies
+            ? formData.allergies
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : null,
+          chronic_conditions: formData.chronic_conditions
+            ? formData.chronic_conditions
+                .split("\n")
+                .map((s) => s.trim())
+                .filter(Boolean)
+            : null,
           updated_at: new Date().toISOString(),
         })
         .eq("id", patient.id);
@@ -84,17 +149,18 @@ export function EditPatientModal({
       if (error) throw error;
 
       // Create success notification
-      await supabase.from("notifications").insert({
+      await (supabase as any).from("notifications").insert({
         user_id: user.id,
         type: "system",
         title: "Patient Updated",
         message: `Patient ${formData.name} has been updated successfully.`,
         priority: "normal",
-      });
+      } as any);
 
       onClose();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error.message || "An error occurred while updating the patient");
     } finally {
       setLoading(false);
     }
@@ -112,16 +178,35 @@ export function EditPatientModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Edit Patient" size="lg">
-      <form onSubmit={handleSubmit} className="p-6 space-y-6">
+    <FormModal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Edit Patient"
+      description="Update patient information"
+      onSubmit={handleSubmit}
+      submitText={loading ? "Updating..." : "Update Patient"}
+      isLoading={loading}
+      error={error}
+      maxWidth="2xl"
+    >
+      {/* Basic Information Section */}
+      <div className="space-y-4">
+        <div className="flex items-center pb-2 border-b border-gray-200">
+          <h3 className="text-base font-semibold text-gray-900">
+            Basic Information
+          </h3>
+          <span className="ml-2 text-xs text-red-500">* Required</span>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
-            label="Full Name"
+            label="Full Name *"
             name="name"
             value={formData.name}
             onChange={handleInputChange}
             required
             placeholder="Enter patient's full name"
+            className={!formData.name.trim() && error ? "border-red-300" : ""}
           />
           <Input
             label="Age"
@@ -139,18 +224,22 @@ export function EditPatientModal({
             value={formData.gender}
             onChange={handleInputChange}
             options={[
+              { value: "", label: "Select gender" },
               { value: "Male", label: "Male" },
               { value: "Female", label: "Female" },
               { value: "Other", label: "Other" },
             ]}
           />
           <Input
-            label="Contact Number"
+            label="Contact Number *"
             name="contact"
             value={formData.contact}
             onChange={handleInputChange}
             required
             placeholder="Enter contact number"
+            className={
+              !formData.contact.trim() && error ? "border-red-300" : ""
+            }
           />
           <Input
             label="Email Address"
@@ -176,39 +265,107 @@ export function EditPatientModal({
           onChange={handleInputChange}
           placeholder="Enter complete address"
         />
+      </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+      {/* Medical History Section */}
+      <div className="space-y-4 border-t pt-6">
+        <div className="flex items-center pb-2">
+          <h3 className="text-base font-semibold text-gray-900">
             Medical History
-          </label>
-          <textarea
-            name="medical_history"
-            value={formData.medical_history}
-            onChange={handleInputChange}
-            rows={4}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Enter medical history (JSON format or plain text)"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            You can enter plain text or JSON format for structured data
-          </p>
+          </h3>
+          <span className="ml-2 text-xs text-gray-500">
+            Optional - Can be updated later
+          </span>
         </div>
 
-        {error && (
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">{error}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Allergies
+            </label>
+            <textarea
+              name="allergies"
+              value={formData.allergies}
+              onChange={handleInputChange}
+              rows={4}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="Food allergies, drug allergies, etc.&#10;Each allergy on a new line"
+            />
           </div>
-        )}
 
-        <div className="flex justify-end space-x-3">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? "Updating..." : "Update Patient"}
-          </Button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Chronic Conditions
+            </label>
+            <textarea
+              name="chronic_conditions"
+              value={formData.chronic_conditions}
+              onChange={handleInputChange}
+              rows={4}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="Diabetes, hypertension, asthma, etc.&#10;Each condition on a new line"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Current Medications
+            </label>
+            <textarea
+              name="medications"
+              value={formData.medications}
+              onChange={handleInputChange}
+              rows={4}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="Current medications and dosages&#10;Each medication on a new line"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Previous Surgeries
+            </label>
+            <textarea
+              name="previous_surgeries"
+              value={formData.previous_surgeries}
+              onChange={handleInputChange}
+              rows={4}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="Previous surgeries and dates&#10;Each surgery on a new line"
+            />
+          </div>
         </div>
-      </form>
-    </Modal>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Family History
+            </label>
+            <textarea
+              name="family_history"
+              value={formData.family_history}
+              onChange={handleInputChange}
+              rows={4}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="Family medical history, genetic conditions, etc."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Additional Notes
+            </label>
+            <textarea
+              name="additional_notes"
+              value={formData.additional_notes}
+              onChange={handleInputChange}
+              rows={4}
+              className="block w-full px-3 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              placeholder="Any other relevant medical information"
+            />
+          </div>
+        </div>
+      </div>
+    </FormModal>
   );
 }

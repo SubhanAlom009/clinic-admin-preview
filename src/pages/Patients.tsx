@@ -1,5 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Plus, Search, Edit, Trash2, Eye, Users } from "lucide-react";
+import {
+  Plus,
+  Search,
+  Edit,
+  Trash2,
+  Eye,
+  Users,
+  AlertTriangle,
+  Pill,
+  Heart,
+  FileText,
+  Phone,
+  Mail,
+  Calendar,
+} from "lucide-react";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card, CardContent } from "../components/ui/Card";
@@ -150,68 +164,151 @@ export function Patients() {
 
       {/* Patients Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredPatients.map((patient) => (
-          <Card
-            key={patient.id}
-            className="hover:shadow-md transition-shadow duration-200"
-          >
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {patient.name}
-                  </h3>
-                  <p className="text-sm text-gray-500">
-                    {patient.age && `${patient.age} years`}{" "}
-                    {patient.gender && `• ${patient.gender}`}
-                  </p>
-                </div>
-                <div className="flex space-x-1">
-                  <button
-                    onClick={() => handleViewPatient(patient)}
-                    className="p-1 text-gray-400 hover:text-blue-600 transition-colors duration-200"
-                    title="View Patient Details"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => handleEditPatient(patient)}
-                    className="p-1 text-gray-400 hover:text-green-600 transition-colors duration-200"
-                    title="Edit Patient"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => deletePatient(patient.id)}
-                    className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
-                    title="Delete Patient"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
+        {filteredPatients.map((patient) => {
+          // Helper function to check if patient has medical history
+          const hasMedicalHistory = (patient: Patient) => {
+            return !!(
+              patient.allergies?.length ||
+              patient.chronic_conditions?.length ||
+              patient.medications?.length ||
+              patient.previous_surgeries?.length ||
+              patient.family_history ||
+              patient.additional_notes ||
+              (patient.medical_history &&
+                Object.keys(patient.medical_history).length > 0)
+            );
+          };
 
-              <div className="space-y-2">
-                <div className="flex items-center text-sm">
-                  <span className="text-gray-500 w-20">Phone:</span>
-                  <span className="text-gray-900">{patient.contact}</span>
-                </div>
-                {patient.email && (
-                  <div className="flex items-center text-sm">
-                    <span className="text-gray-500 w-20">Email:</span>
-                    <span className="text-gray-900">{patient.email}</span>
+          const medicalHistoryCount = [
+            patient.allergies?.length && "allergies",
+            patient.chronic_conditions?.length && "conditions",
+            patient.medications?.length && "medications",
+            patient.previous_surgeries?.length && "surgeries",
+            patient.family_history && "family history",
+            patient.additional_notes && "notes",
+          ].filter(Boolean).length;
+
+          return (
+            <Card
+              key={patient.id}
+              className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500"
+            >
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {patient.name}
+                      </h3>
+                      {hasMedicalHistory(patient) && (
+                        <div className="flex items-center gap-1">
+                          <Heart className="h-4 w-4 text-red-500" />
+                          <span className="text-xs text-gray-500 bg-red-50 px-2 py-1 rounded-full">
+                            {medicalHistoryCount} records
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      {patient.age && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {patient.age} years
+                        </span>
+                      )}
+                      {patient.gender && (
+                        <span className="text-gray-400">•</span>
+                      )}
+                      {patient.gender && <span>{patient.gender}</span>}
+                    </div>
                   </div>
-                )}
-                <div className="flex items-center text-sm">
-                  <span className="text-gray-500 w-20">Joined:</span>
-                  <span className="text-gray-900">
-                    {format(new Date(patient.created_at), "MMM d, yyyy")}
-                  </span>
+                  <div className="flex space-x-1">
+                    <button
+                      onClick={() => handleViewPatient(patient)}
+                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
+                      title="View Patient Details"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => handleEditPatient(patient)}
+                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
+                      title="Edit Patient"
+                    >
+                      <Edit className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => deletePatient(patient.id)}
+                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
+                      title="Delete Patient"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+
+                <div className="space-y-3">
+                  <div className="flex items-center text-sm">
+                    <Phone className="h-4 w-4 text-gray-400 mr-2" />
+                    <span className="text-gray-900 font-medium">
+                      {patient.contact}
+                    </span>
+                  </div>
+                  {patient.email && (
+                    <div className="flex items-center text-sm">
+                      <Mail className="h-4 w-4 text-gray-400 mr-2" />
+                      <span className="text-gray-900">{patient.email}</span>
+                    </div>
+                  )}
+
+                  {/* Medical Indicators */}
+                  {hasMedicalHistory(patient) && (
+                    <div className="pt-2 border-t border-gray-100">
+                      <div className="flex flex-wrap gap-1">
+                        {patient.allergies?.length > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">
+                            <AlertTriangle className="h-3 w-3" />
+                            Allergies
+                          </span>
+                        )}
+                        {patient.chronic_conditions?.length > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">
+                            <Heart className="h-3 w-3" />
+                            Conditions
+                          </span>
+                        )}
+                        {patient.medications?.length > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
+                            <Pill className="h-3 w-3" />
+                            Medications
+                          </span>
+                        )}
+                        {patient.previous_surgeries?.length > 0 && (
+                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
+                            <FileText className="h-3 w-3" />
+                            Surgery History
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
+                    <span>
+                      Registered:{" "}
+                      {format(new Date(patient.created_at), "MMM d, yyyy")}
+                    </span>
+                    {patient.emergency_contact && (
+                      <span className="text-green-600">
+                        Emergency contact available
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {filteredPatients.length === 0 && !loading && (
