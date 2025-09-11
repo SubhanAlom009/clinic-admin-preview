@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Edit, Trash2, Phone, Mail, UserCheck } from 'lucide-react';
-import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
-import { Card, CardHeader, CardContent, CardTitle } from '../components/ui/Card';
-import { AddDoctorModal } from '../components/AddDoctorModal';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
-import { Doctor } from '../types';
-import { format } from 'date-fns';
+import { useState, useEffect } from "react";
+import { Plus, Search, Edit, Trash2, Phone, UserCheck } from "lucide-react";
+import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/Input";
+import { Card, CardContent } from "../components/ui/Card";
+import { AddDoctorModal } from "../components/doctorComponents/AddDoctorModal";
+import { EditDoctorModal } from "../components/doctorComponents/EditDoctorModal";
+import { supabase } from "../lib/supabase";
+import { useAuth } from "../hooks/useAuth";
+import { Doctor } from "../types";
+import { format } from "date-fns";
 
 export function Doctors() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [filteredDoctors, setFilteredDoctors] = useState<Doctor[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
@@ -22,10 +25,10 @@ export function Doctors() {
 
     const fetchDoctors = async () => {
       const { data } = await supabase
-        .from('doctors')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .from("doctors")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
 
       if (data) {
         setDoctors(data);
@@ -38,13 +41,13 @@ export function Doctors() {
 
     // Real-time subscription
     const subscription = supabase
-      .channel('doctors')
+      .channel("doctors")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'doctors',
+          event: "*",
+          schema: "public",
+          table: "doctors",
           filter: `user_id=eq.${user.id}`,
         },
         () => {
@@ -59,37 +62,117 @@ export function Doctors() {
   }, [user]);
 
   useEffect(() => {
-    const filtered = doctors.filter(doctor =>
-      doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.specialization.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      doctor.contact.includes(searchTerm)
+    const filtered = doctors.filter(
+      (doctor) =>
+        doctor.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doctor.specialization
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        doctor.contact.includes(searchTerm)
     );
     setFilteredDoctors(filtered);
   }, [searchTerm, doctors]);
 
   const deleteDoctor = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this doctor?')) return;
+    if (!confirm("Are you sure you want to delete this doctor?")) return;
 
-    const { error } = await supabase
-      .from('doctors')
-      .delete()
-      .eq('id', id);
+    const { error } = await supabase.from("doctors").delete().eq("id", id);
 
     if (error) {
-      alert('Error deleting doctor: ' + error.message);
+      alert("Error deleting doctor: " + error.message);
     }
   };
 
+  const handleEditDoctor = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+    setIsEditModalOpen(true);
+  };
+
+  const handleCloseModals = () => {
+    setSelectedDoctor(null);
+    setIsEditModalOpen(false);
+  };
+
+  // custom skeleton )
   if (loading) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-12 bg-gray-200 rounded"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-64 bg-gray-200 rounded-lg"></div>
-            ))}
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-6 bg-gray-200 rounded w-48 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-64"></div>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="w-36">
+                <div className="h-10 bg-gray-200 rounded w-full" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <div className="h-10 bg-gray-200 rounded w-full mb-4"></div>
+          </div>
+
+          <div className="overflow-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <th key={i} className="px-4 py-3">
+                      <div className="h-4 bg-gray-200 rounded w-full"></div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 6 }).map((_, row) => (
+                  <tr key={row} className="border-b">
+                    <td className="px-4 py-4 align-top text-sm text-gray-600">
+                      <div className="h-4 bg-gray-200 rounded w-4"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <div className="h-4 bg-gray-200 rounded w-28 mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded w-20"></div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-blue-600">
+                      <div className="h-4 bg-gray-200 rounded w-24"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-gray-900">
+                      <div className="h-4 bg-gray-200 rounded w-32"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-gray-700">
+                      <div className="h-4 bg-gray-200 rounded w-40"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-gray-700">
+                      <div className="h-4 bg-gray-200 rounded w-16"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-green-600">
+                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-gray-500">
+                      <div className="h-4 bg-gray-200 rounded w-24"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-right space-x-1">
+                      <div className="inline-block h-4 w-4 rounded bg-gray-200 ml-auto"></div>
+                      <div className="inline-block h-4 w-4 rounded bg-gray-200 ml-2"></div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -128,60 +211,104 @@ export function Doctors() {
         </CardContent>
       </Card>
 
-      {/* Doctors Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredDoctors.map((doctor) => (
-          <Card key={doctor.id} className="hover:shadow-md transition-shadow duration-200">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">{doctor.name}</h3>
-                  <p className="text-sm text-blue-600 font-medium">{doctor.specialization}</p>
-                  {doctor.experience_years > 0 && (
-                    <p className="text-sm text-gray-500">{doctor.experience_years} years experience</p>
-                  )}
-                </div>
-                <div className="flex space-x-1">
-                  <button className="p-1 text-gray-400 hover:text-green-600 transition-colors duration-200">
-                    <Edit className="h-4 w-4" />
-                  </button>
-                  <button 
-                    onClick={() => deleteDoctor(doctor.id)}
-                    className="p-1 text-gray-400 hover:text-red-600 transition-colors duration-200"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center text-sm">
-                  <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-gray-900">{doctor.contact}</span>
-                </div>
-                {doctor.email && (
-                  <div className="flex items-center text-sm">
-                    <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                    <span className="text-gray-900">{doctor.email}</span>
-                  </div>
-                )}
-                {doctor.consultation_fee > 0 && (
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-gray-500">Consultation Fee:</span>
-                    <span className="font-semibold text-green-600">₹{doctor.consultation_fee}</span>
-                  </div>
-                )}
-              </div>
-
-              {doctor.qualifications && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <p className="text-sm text-gray-600">{doctor.qualifications}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Doctors Table */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="overflow-auto max-h-[60vh]">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    #
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Specialization
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Experience
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Fee
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Registered
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredDoctors.map((doctor, index) => (
+                  <tr key={doctor.id}>
+                    <td className="px-4 py-3 align-top text-sm text-gray-600">
+                      {index + 1}
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <div className="text-sm font-medium text-gray-900">
+                        {doctor.name}
+                      </div>
+                      <div className="text-xs text-gray-500 mt-0.5">
+                        {doctor.qualifications ?? ""}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 align-top text-sm text-blue-600">
+                      {doctor.specialization}
+                    </td>
+                    <td className="px-4 py-3 align-top text-sm text-gray-900">
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-gray-400" />
+                        <span>{doctor.contact}</span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 align-top text-sm text-gray-700">
+                      {doctor.email ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 align-top text-sm text-gray-700">
+                      {doctor.experience_years
+                        ? `${doctor.experience_years} yrs`
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 align-top text-sm text-green-600">
+                      {doctor.consultation_fee > 0
+                        ? `₹${doctor.consultation_fee}`
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 align-top text-sm text-gray-500">
+                      {format(new Date(doctor.created_at), "MMM d, yyyy")}
+                    </td>
+                    <td className="px-4 py-3 align-top text-right space-x-1">
+                      <button
+                        onClick={() => handleEditDoctor(doctor)}
+                        className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-150"
+                        title="Edit Doctor"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => deleteDoctor(doctor.id)}
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-150"
+                        title="Delete Doctor"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
       {filteredDoctors.length === 0 && !loading && (
         <Card>
@@ -189,9 +316,13 @@ export function Doctors() {
             <div className="text-gray-400 mb-4">
               <UserCheck className="h-12 w-12 mx-auto" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No doctors found</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No doctors found
+            </h3>
             <p className="text-gray-500 mb-4">
-              {searchTerm ? 'Try adjusting your search criteria' : 'Get started by adding your first doctor'}
+              {searchTerm
+                ? "Try adjusting your search criteria"
+                : "Get started by adding your first doctor"}
             </p>
             <Button onClick={() => setIsAddModalOpen(true)}>
               <Plus className="h-5 w-5 mr-2" />
@@ -204,6 +335,12 @@ export function Doctors() {
       <AddDoctorModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
+      />
+
+      <EditDoctorModal
+        isOpen={isEditModalOpen}
+        onClose={handleCloseModals}
+        doctor={selectedDoctor}
       />
     </div>
   );
