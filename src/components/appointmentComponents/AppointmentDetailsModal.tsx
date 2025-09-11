@@ -17,6 +17,7 @@ type AppointmentUpdatePatch = Partial<
     | "checked_in_at"
     | "actual_start_time"
     | "actual_end_time"
+    | "duration_minutes"
     | "updated_at"
   >
 > & { [key: string]: unknown };
@@ -130,6 +131,9 @@ export const AppointmentDetailsModal: React.FC<
       if (extra.actual_end_time) {
         updateData.actual_end_time = extra.actual_end_time;
       }
+      if (extra.duration_minutes !== undefined) {
+        updateData.duration_minutes = extra.duration_minutes;
+      }
       if (extra.diagnosis) {
         updateData.diagnosis = extra.diagnosis;
       }
@@ -182,6 +186,15 @@ export const AppointmentDetailsModal: React.FC<
         break;
       case AppointmentStatus.COMPLETED:
         extra.actual_end_time = new Date().toISOString();
+        // Update duration_minutes with actual consultation time if we have start time
+        if (appointment.actual_start_time) {
+          const actualDuration = Math.round(
+            (new Date().getTime() -
+              new Date(appointment.actual_start_time).getTime()) /
+              (1000 * 60)
+          );
+          extra.duration_minutes = actualDuration;
+        }
         break;
     }
     performUpdate(target, extra);
@@ -263,6 +276,25 @@ export const AppointmentDetailsModal: React.FC<
             <p className="text-xs text-gray-500">
               {format(new Date(appointment.appointment_datetime), "hh:mm a")} •{" "}
               {appointment.duration_minutes || 30} min
+              {appointment.actual_start_time &&
+                appointment.actual_end_time &&
+                appointment.duration_minutes !==
+                  Math.round(
+                    (new Date(appointment.actual_end_time).getTime() -
+                      new Date(appointment.actual_start_time).getTime()) /
+                      (1000 * 60)
+                  ) && (
+                  <span className="text-orange-600">
+                    {" "}
+                    (actual:{" "}
+                    {Math.round(
+                      (new Date(appointment.actual_end_time).getTime() -
+                        new Date(appointment.actual_start_time).getTime()) /
+                        (1000 * 60)
+                    )}{" "}
+                    min)
+                  </span>
+                )}
             </p>
           </div>
         </div>
@@ -482,17 +514,7 @@ export const AppointmentDetailsModal: React.FC<
                   </span>
                 </div>
               )}
-              {appointment.estimated_start_time && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-gray-600">ETA:</span>
-                  <span className="inline-flex px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                    {format(
-                      new Date(appointment.estimated_start_time),
-                      "hh:mm a"
-                    )}
-                  </span>
-                </div>
-              )}
+              {/* ETA removed: estimated_start_time is managed server-side/queue system and not shown in UI */}
               {appointment.checked_in_at && (
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-gray-600">Checked In:</span>
@@ -548,7 +570,7 @@ export const AppointmentDetailsModal: React.FC<
                     appointment.actual_end_time && (
                       <div className="bg-green-50 p-3 rounded-lg">
                         <p className="text-green-700 font-medium">
-                          Consultation Duration
+                          Actual Consultation Duration
                         </p>
                         <p className="text-green-600">
                           {Math.round(
@@ -559,6 +581,11 @@ export const AppointmentDetailsModal: React.FC<
                               (1000 * 60)
                           )}{" "}
                           minutes
+                          {appointment.duration_minutes && (
+                            <span className="text-gray-500 text-xs block">
+                              (Planned: {appointment.duration_minutes} min)
+                            </span>
+                          )}
                         </p>
                       </div>
                     )}

@@ -106,7 +106,7 @@ export function AddAppointmentModal({
         status: AppointmentStatus.SCHEDULED,
         // Initialize queue fields for new appointments
         queue_position: null,
-        estimated_start_time: null,
+        // estimated_start_time intentionally not set here; queue/ETA is managed server-side
         patient_checked_in: false,
         emergency_status: false,
       };

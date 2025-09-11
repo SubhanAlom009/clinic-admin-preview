@@ -413,6 +413,24 @@ export function Appointments() {
                                 </div>
                                 <div className="text-xs text-gray-500">
                                   {appointment.duration_minutes} min
+                                  {appointment.actual_start_time &&
+                                    appointment.actual_end_time &&
+                                    appointment.status ===
+                                      AppointmentStatus.COMPLETED && (
+                                      <span className="text-orange-600 block">
+                                        Actual:{" "}
+                                        {Math.round(
+                                          (new Date(
+                                            appointment.actual_end_time
+                                          ).getTime() -
+                                            new Date(
+                                              appointment.actual_start_time
+                                            ).getTime()) /
+                                            (1000 * 60)
+                                        )}{" "}
+                                        min
+                                      </span>
+                                    )}
                                 </div>
                               </div>
                             </td>
@@ -451,17 +469,7 @@ export function Appointments() {
                                   <div className="font-medium">
                                     #{appointment.queue_position}
                                   </div>
-                                  {appointment.estimated_start_time && (
-                                    <div className="text-xs text-gray-500">
-                                      ETA:{" "}
-                                      {format(
-                                        new Date(
-                                          appointment.estimated_start_time
-                                        ),
-                                        "h:mm a"
-                                      )}
-                                    </div>
-                                  )}
+                                  {/* ETA removed from list view */}
                                 </div>
                               ) : (
                                 <span className="text-gray-400">-</span>
