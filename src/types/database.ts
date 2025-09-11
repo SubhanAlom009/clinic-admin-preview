@@ -44,6 +44,11 @@ export interface Database {
           address: string | null;
           emergency_contact: string | null;
           medical_history: any;
+          allergies: string[];
+          medications: string[];
+          previous_surgeries: string[];
+          family_history: string;
+          additional_notes: string;
           created_at: string;
           updated_at: string;
         };
@@ -57,6 +62,11 @@ export interface Database {
           address?: string | null;
           emergency_contact?: string | null;
           medical_history?: any;
+          allergies?: string[];
+          medications?: string[];
+          previous_surgeries?: string[];
+          family_history?: string;
+          additional_notes?: string;
         };
         Update: {
           name?: string;
@@ -67,6 +77,11 @@ export interface Database {
           address?: string | null;
           emergency_contact?: string | null;
           medical_history?: any;
+          allergies?: string[];
+          medications?: string[];
+          previous_surgeries?: string[];
+          family_history?: string;
+          additional_notes?: string;
           updated_at?: string;
         };
       };
@@ -117,10 +132,25 @@ export interface Database {
           appointment_datetime: string;
           duration_minutes: number;
           status: string;
+          appointment_type: string | null;
+          delay_minutes: number | null;
           notes: string | null;
           symptoms: string | null;
           diagnosis: string | null;
           prescription: string | null;
+
+          // enhanced queue fields
+          queue_position: number | null;
+          estimated_start_time: string | null;
+          actual_start_time: string | null;
+          actual_end_time: string | null;
+          patient_checked_in: boolean | null;
+          checked_in_at: string | null;
+
+          // emergency fields
+          emergency_status: boolean | null;
+          emergency_reason: string | null;
+
           created_at: string;
           updated_at: string;
         };
@@ -131,19 +161,48 @@ export interface Database {
           appointment_datetime: string;
           duration_minutes?: number;
           status?: string;
+          appointment_type?: string | null;
+          delay_minutes?: number | null;
           notes?: string | null;
           symptoms?: string | null;
           diagnosis?: string | null;
           prescription?: string | null;
+
+          // Enhanced fields for insert
+          queue_position?: number | null;
+          estimated_start_time?: string | null;
+          actual_start_time?: string | null;
+          actual_end_time?: string | null;
+          patient_checked_in?: boolean | null;
+          checked_in_at?: string | null;
+
+          // Emergency fields for insert
+          emergency_status?: boolean | null;
+          emergency_reason?: string | null;
         };
         Update: {
           appointment_datetime?: string;
           duration_minutes?: number;
           status?: string;
+          appointment_type?: string | null;
+          delay_minutes?: number | null;
           notes?: string | null;
           symptoms?: string | null;
           diagnosis?: string | null;
           prescription?: string | null;
+
+          // Enhanced fields for update
+          queue_position?: number | null;
+          estimated_start_time?: string | null;
+          actual_start_time?: string | null;
+          actual_end_time?: string | null;
+          patient_checked_in?: boolean | null;
+          checked_in_at?: string | null;
+
+          // Emergency fields for update
+          emergency_status?: boolean | null;
+          emergency_reason?: string | null;
+
           updated_at?: string;
         };
       };
