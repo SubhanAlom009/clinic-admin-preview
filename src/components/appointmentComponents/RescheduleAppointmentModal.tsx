@@ -75,20 +75,61 @@ export function RescheduleAppointmentModal({
     setError("");
 
     try {
-      const { error } = await supabase
+      console.log(
+        "Rescheduling appointment with status:",
+        AppointmentStatus.SCHEDULED
+      );
+      console.log("Status value being sent:", AppointmentStatus.SCHEDULED);
+
+      const updateData = {
+        appointment_datetime: new Date(
+          formData.appointment_datetime
+        ).toISOString(),
+        duration_minutes: parseInt(formData.duration_minutes),
+        notes: formData.notes || null,
+        status: AppointmentStatus.SCHEDULED, // Set back to scheduled when rescheduled
+        updated_at: new Date().toISOString(),
+        // Reset queue fields when rescheduling
+        queue_position: null,
+        estimated_start_time: null,
+      };
+
+      console.log("Full update data:", updateData);
+      console.log("Original datetime:", formData.appointment_datetime);
+      console.log(
+        "Converted to ISO:",
+        new Date(formData.appointment_datetime).toISOString()
+      );
+
+      const { error } = await (supabase as any)
         .from("appointments")
-        .update({
-          appointment_datetime: formData.appointment_datetime,
-          duration_minutes: parseInt(formData.duration_minutes),
-          notes: formData.notes || null,
-          status: AppointmentStatus.RESCHEDULED,
-        })
+        .update(updateData)
         .eq("id", appointment.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Database update error:", error);
+        throw error;
+      }
+
+      console.log("Appointment rescheduled successfully");
+
+      // Verify the status was set correctly by fetching the updated appointment
+      const { data: updatedAppointment } = await (supabase as any)
+        .from("appointments")
+        .select("id, status, appointment_datetime")
+        .eq("id", appointment.id)
+        .single();
+
+      if (updatedAppointment) {
+        console.log("Updated appointment status:", updatedAppointment.status);
+        console.log(
+          "Updated appointment datetime:",
+          updatedAppointment.appointment_datetime
+        );
+      }
 
       // Create notification
-      await supabase.from("notifications").insert({
+      await (supabase as any).from("notifications").insert({
         user_id: user.id,
         type: "appointment",
         title: "Appointment Rescheduled",
@@ -102,8 +143,9 @@ export function RescheduleAppointmentModal({
       });
 
       onClose();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err: unknown) {
+      const error = err as { message?: string };
+      setError(error.message || "Failed to reschedule appointment");
     } finally {
       setLoading(false);
     }

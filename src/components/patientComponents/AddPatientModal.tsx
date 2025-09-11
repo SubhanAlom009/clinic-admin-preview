@@ -84,12 +84,6 @@ export function AddPatientModal({ isOpen, onClose }: AddPatientModalProps) {
         emergency_contact: formData.emergency_contact || null,
         medical_history:
           Object.keys(cleanedHistory).length > 0 ? cleanedHistory : null,
-        allergies: formData.allergies
-          ? formData.allergies
-              .split("\n")
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : null,
         medications: formData.medications
           ? formData.medications
               .split("\n")

@@ -44,6 +44,7 @@ export interface Database {
           address: string | null;
           emergency_contact: string | null;
           medical_history: any;
+          allergies: string[];
           medications: string[];
           previous_surgeries: string[];
           family_history: string;
@@ -61,6 +62,7 @@ export interface Database {
           address?: string | null;
           emergency_contact?: string | null;
           medical_history?: any;
+          allergies?: string[];
           medications?: string[];
           previous_surgeries?: string[];
           family_history?: string;
@@ -75,6 +77,7 @@ export interface Database {
           address?: string | null;
           emergency_contact?: string | null;
           medical_history?: any;
+          allergies?: string[];
           medications?: string[];
           previous_surgeries?: string[];
           family_history?: string;
@@ -129,6 +132,8 @@ export interface Database {
           appointment_datetime: string;
           duration_minutes: number;
           status: string;
+          appointment_type: string | null;
+          delay_minutes: number | null;
           notes: string | null;
           symptoms: string | null;
           diagnosis: string | null;
@@ -156,6 +161,8 @@ export interface Database {
           appointment_datetime: string;
           duration_minutes?: number;
           status?: string;
+          appointment_type?: string | null;
+          delay_minutes?: number | null;
           notes?: string | null;
           symptoms?: string | null;
           diagnosis?: string | null;
@@ -177,6 +184,8 @@ export interface Database {
           appointment_datetime?: string;
           duration_minutes?: number;
           status?: string;
+          appointment_type?: string | null;
+          delay_minutes?: number | null;
           notes?: string | null;
           symptoms?: string | null;
           diagnosis?: string | null;

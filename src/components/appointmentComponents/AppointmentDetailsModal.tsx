@@ -60,7 +60,7 @@ const legacyStatusMap: Record<string, AppointmentStatus> = {
   completed: AppointmentStatus.COMPLETED,
   cancelled: AppointmentStatus.CANCELLED,
   "no-show": AppointmentStatus.NO_SHOW,
-  rescheduled: AppointmentStatus.CANCELLED, // treat rescheduled as cancelled for transitions
+  rescheduled: AppointmentStatus.SCHEDULED, // rescheduled appointments should be treated as scheduled
 };
 
 export const AppointmentDetailsModal: React.FC<
@@ -336,33 +336,112 @@ export const AppointmentDetailsModal: React.FC<
             </div>
           </div>
 
-          {/* Medical History Section */}
-          {appointment.patient?.medical_history && (
+          {/* Medical Information Section */}
+          {appointment.patient && (
             <div className="mt-8 pt-6 border-t border-gray-200">
-              <h4 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
-                Medical History
+              <h4 className="text-lg font-semibold text-gray-800 mb-6">
+                Medical Information
               </h4>
-              <div className="text-gray-700 bg-gray-50 p-4 rounded-lg border border-gray-200">
-                {(() => {
-                  const history = appointment.patient.medical_history;
-                  if (typeof history === "string") {
-                    return history;
-                  } else if (Array.isArray(history)) {
-                    return (history as string[]).join(", ");
-                  } else if (typeof history === "object" && history !== null) {
-                    // Handle JSON object - extract meaningful fields
-                    const entries = Object.entries(history);
-                    return entries
-                      .map(
-                        ([key, value]) =>
-                          `${key}: ${
-                            Array.isArray(value) ? value.join(", ") : value
-                          }`
-                      )
-                      .join(" | ");
-                  }
-                  return "No medical history available";
-                })()}
+
+              <div className="space-y-6">
+                {/* Allergies */}
+                {appointment.patient.allergies &&
+                  appointment.patient.allergies.length > 0 && (
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-600 mb-2">
+                        Allergies
+                      </h5>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                        {appointment.patient.allergies.map((allergy, index) => (
+                          <li key={index}>{allergy}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                {/* Current Medications */}
+                {appointment.patient.medications &&
+                  appointment.patient.medications.length > 0 && (
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-600 mb-2">
+                        Current Medications
+                      </h5>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                        {appointment.patient.medications.map(
+                          (medication, index) => (
+                            <li key={index}>{medication}</li>
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  )}
+
+                {/* Previous Surgeries */}
+                {appointment.patient.previous_surgeries &&
+                  appointment.patient.previous_surgeries.length > 0 && (
+                    <div>
+                      <h5 className="text-sm font-medium text-gray-600 mb-2">
+                        Previous Surgeries
+                      </h5>
+                      <ul className="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                        {appointment.patient.previous_surgeries.map(
+                          (surgery, index) => (
+                            <li key={index}>{surgery}</li>
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  )}
+
+                {/* Family History */}
+                {appointment.patient.family_history && (
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-600 mb-2">
+                      Family History
+                    </h5>
+                    <p className="text-sm text-gray-700 ml-4">
+                      {appointment.patient.family_history}
+                    </p>
+                  </div>
+                )}
+
+                {/* Additional Notes */}
+                {appointment.patient.additional_notes && (
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-600 mb-2">
+                      Additional Notes
+                    </h5>
+                    <p className="text-sm text-gray-700 ml-4">
+                      {appointment.patient.additional_notes}
+                    </p>
+                  </div>
+                )}
+
+                {/* Emergency Contact */}
+                {appointment.patient.emergency_contact && (
+                  <div>
+                    <h5 className="text-sm font-medium text-gray-600 mb-2">
+                      Emergency Contact
+                    </h5>
+                    <p className="text-sm text-gray-700 ml-4">
+                      {appointment.patient.emergency_contact}
+                    </p>
+                  </div>
+                )}
+
+                {/* Show message if no medical information is available */}
+                {!appointment.patient.allergies?.length &&
+                  !appointment.patient.medications?.length &&
+                  !appointment.patient.previous_surgeries?.length &&
+                  !appointment.patient.family_history &&
+                  !appointment.patient.additional_notes &&
+                  !appointment.patient.emergency_contact && (
+                    <div className="text-center py-6">
+                      <p className="text-sm text-gray-500">
+                        No medical information available for this patient
+                      </p>
+                    </div>
+                  )}
               </div>
             </div>
           )}

@@ -104,6 +104,11 @@ export function AddAppointmentModal({
         notes: formData.notes || null,
         symptoms: formData.symptoms || null, // Add symptoms to appointment data
         status: AppointmentStatus.SCHEDULED,
+        // Initialize queue fields for new appointments
+        queue_position: null,
+        estimated_start_time: null,
+        patient_checked_in: false,
+        emergency_status: false,
       };
 
       console.log("Creating appointment with data:", appointmentData);
