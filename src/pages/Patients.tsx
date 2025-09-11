@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
+import type { ComponentType } from "react";
 import {
   Plus,
   Search,
@@ -6,20 +7,18 @@ import {
   Trash2,
   Eye,
   Users,
+  Heart,
+  Phone,
   AlertTriangle,
   Pill,
-  Heart,
   FileText,
-  Phone,
-  Mail,
-  Calendar,
 } from "lucide-react";
-import { Button } from "../components/ui/Button";
+import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/Input";
 import { Card, CardContent } from "../components/ui/Card";
-import { AddPatientModal } from "../components/AddPatientModal";
-import { ViewPatientModal } from "../components/ViewPatientModal";
-import { EditPatientModal } from "../components/EditPatientModal";
+import { AddPatientModal } from "../components/patientComponents/AddPatientModal";
+import { ViewPatientModal } from "../components/patientComponents/ViewPatientModal";
+import { EditPatientModal } from "../components/patientComponents/EditPatientModal";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { Patient } from "../types";
@@ -39,6 +38,7 @@ export function Patients() {
   useEffect(() => {
     if (!user) return;
 
+    // Fetch patients when component mounts
     const fetchPatients = async () => {
       const { data } = await supabase
         .from("patients")
@@ -88,6 +88,7 @@ export function Patients() {
     setFilteredPatients(filtered);
   }, [searchTerm, patients]);
 
+  // Delete operation
   const deletePatient = async (id: string) => {
     if (!confirm("Are you sure you want to delete this patient?")) return;
 
@@ -108,28 +109,249 @@ export function Patients() {
     setIsEditModalOpen(true);
   };
 
+  // Small inline component to render compact badges and a popover for full records
+  function RecordBadges({ patient }: { patient: Patient }) {
+    // Helper to extract an array of strings for a medical field. First check top-level column, then fallback to medical_history JSON.
+    const getArrayFromPatient = (key: string, altKeys: string[] = []) => {
+      const p = patient as unknown as Record<string, unknown>;
+
+      const tryCast = (val: unknown): string[] | null => {
+        if (!val) return null;
+        if (Array.isArray(val))
+          return (val as unknown[]).filter(Boolean).map(String);
+        if (typeof val === "string") {
+          const s = val.trim();
+          if (!s) return null;
+          // split on newlines or commas and trim
+          return s
+            .split(/[\r\n,]+/)
+            .map((x) => x.trim())
+            .filter(Boolean);
+        }
+        return null;
+      };
+
+      // try top-level
+      const top = tryCast(p[key]);
+      if (top && top.length > 0) return top;
+
+      // try provided alternate keys
+      for (const k of altKeys) {
+        const v = tryCast(p[k]);
+        if (v && v.length > 0) return v;
+      }
+
+      // try medical_history JSON
+      const mh = p["medical_history"] as unknown;
+      if (mh && typeof mh === "object") {
+        try {
+          const mhObj = mh as Record<string, unknown>;
+          const v = tryCast(mhObj[key]);
+          if (v && v.length > 0) return v;
+
+          for (const k of altKeys) {
+            const vv = tryCast(mhObj[k]);
+            if (vv && vv.length > 0) return vv;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      return [];
+    };
+
+    const items: {
+      key: string;
+      label: string;
+      icon?: ComponentType<{ className?: string }>;
+      values: string[];
+    }[] = [];
+
+    const allergies = getArrayFromPatient("allergies", ["allergy"]);
+    if (allergies.length)
+      items.push({
+        key: "allergies",
+        label: "Allergies",
+        icon: AlertTriangle,
+        values: allergies,
+      });
+
+    const conditions = getArrayFromPatient("chronic_conditions", [
+      "conditions",
+    ]);
+    if (conditions.length)
+      items.push({
+        key: "chronic_conditions",
+        label: "Conditions",
+        icon: Heart,
+        values: conditions,
+      });
+
+    const meds = getArrayFromPatient("medications", [
+      "meds",
+      "medications_list",
+    ]);
+    if (meds.length)
+      items.push({
+        key: "medications",
+        label: "Medications",
+        icon: Pill,
+        values: meds,
+      });
+
+    const surgeries = getArrayFromPatient("previous_surgeries", [
+      "surgeries",
+      "previous_surgeries_list",
+    ]);
+    if (surgeries.length)
+      items.push({
+        key: "previous_surgeries",
+        label: "Surgeries",
+        icon: FileText,
+        values: surgeries,
+      });
+
+    const [open, setOpen] = useState(false);
+
+    const visible = items.slice(0, 2);
+    const hiddenCount = Math.max(0, items.length - visible.length);
+
+    return (
+      <div className="relative inline-block">
+        <div className="flex items-center gap-2">
+          {visible.map((it) => (
+            <span
+              key={it.key}
+              className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-gray-100 text-gray-800 rounded-full"
+            >
+              {it.icon ? <it.icon className="h-3 w-3" /> : null}
+              {it.label}
+            </span>
+          ))}
+
+          {hiddenCount > 0 && (
+            <button
+              onClick={() => setOpen((s) => !s)}
+              className="inline-flex items-center justify-center h-6 w-6 rounded-full bg-gray-200 text-xs text-gray-700"
+              title={`Show ${hiddenCount} more`}
+            >
+              +{hiddenCount}
+            </button>
+          )}
+        </div>
+
+        {open && (
+          <div className="absolute right-0 mt-2 w-56 bg-white border border-gray-100 rounded shadow-lg z-20 p-3">
+            <div className="text-sm text-gray-700 space-y-2">
+              {items.map((it) => (
+                <div key={it.key} className="flex items-center gap-2">
+                  {it.icon ? (
+                    <it.icon className="h-4 w-4 text-gray-500" />
+                  ) : null}
+                  <div>
+                    <div className="font-medium text-gray-900">{it.label}</div>
+                    <div className="text-xs text-gray-600">
+                      {it.values.slice(0, 5).join(", ") || "—"}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   const handleCloseModals = () => {
     setSelectedPatient(null);
     setIsViewModalOpen(false);
     setIsEditModalOpen(false);
   };
 
+  // Custom skeleton loader
   if (loading) {
     return (
       <div className="p-6">
         <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/4"></div>
-          <div className="h-12 bg-gray-200 rounded"></div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-48 bg-gray-200 rounded-lg"></div>
-            ))}
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="h-8 bg-gray-200 rounded w-48 mb-2"></div>
+              <div className="h-3 bg-gray-200 rounded w-64"></div>
+            </div>
+            <div className="h-10 w-36 bg-gray-200 rounded-md" />
+          </div>
+          <div>
+            <div className="h-10 bg-gray-200 rounded w-full mb-4"></div>
+          </div>
+
+          <div className="overflow-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  {Array.from({ length: 9 }).map((_, i) => (
+                    <th key={i} className="px-4 py-3">
+                      <div className="h-4 bg-gray-200 rounded w-full"></div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {Array.from({ length: 6 }).map((_, row) => (
+                  <tr key={row} className="border-b">
+                    <td className="px-4 py-4 align-top text-sm text-gray-600">
+                      <div className="h-4 bg-gray-200 rounded w-4"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1">
+                          <div className="h-4 bg-gray-200 rounded w-28 mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded w-20"></div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-blue-600">
+                      <div className="h-4 bg-gray-200 rounded w-24"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-gray-900">
+                      <div className="h-4 bg-gray-200 rounded w-32"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-gray-700">
+                      <div className="h-4 bg-gray-200 rounded w-40"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-gray-700">
+                      <div className="h-4 bg-gray-200 rounded w-16"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-green-600">
+                      <div className="h-4 bg-gray-200 rounded w-20"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-sm text-gray-500">
+                      <div className="h-4 bg-gray-200 rounded w-24"></div>
+                    </td>
+
+                    <td className="px-4 py-4 align-top text-right space-x-1">
+                      <div className="inline-block h-4 w-4 rounded bg-gray-200 ml-auto"></div>
+                      <div className="inline-block h-4 w-4 rounded bg-gray-200 ml-2"></div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
     );
   }
 
+  // Main Content
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -162,154 +384,125 @@ export function Patients() {
         </CardContent>
       </Card>
 
-      {/* Patients Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredPatients.map((patient) => {
-          // Helper function to check if patient has medical history
-          const hasMedicalHistory = (patient: Patient) => {
-            return !!(
-              patient.allergies?.length ||
-              patient.chronic_conditions?.length ||
-              patient.medications?.length ||
-              patient.previous_surgeries?.length ||
-              patient.family_history ||
-              patient.additional_notes ||
-              (patient.medical_history &&
-                Object.keys(patient.medical_history).length > 0)
-            );
-          };
+      {/* Patients Table */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="overflow-auto max-h-[60vh]">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead>
+                <tr>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    #
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Age / Gender
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Contact
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Email
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Records
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Registered
+                  </th>
+                  <th className="sticky top-0 bg-gray-50 z-10 px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredPatients.map((patient, index) => {
+                  const hasMedicalHistory = (p: Patient) =>
+                    Boolean(
+                      p.allergies?.length ||
+                        p.chronic_conditions?.length ||
+                        p.medications?.length ||
+                        p.previous_surgeries?.length ||
+                        p.family_history ||
+                        p.additional_notes ||
+                        (p.medical_history &&
+                          Object.keys(p.medical_history).length > 0)
+                    );
 
-          const medicalHistoryCount = [
-            patient.allergies?.length && "allergies",
-            patient.chronic_conditions?.length && "conditions",
-            patient.medications?.length && "medications",
-            patient.previous_surgeries?.length && "surgeries",
-            patient.family_history && "family history",
-            patient.additional_notes && "notes",
-          ].filter(Boolean).length;
-
-          return (
-            <Card
-              key={patient.id}
-              className="hover:shadow-lg transition-all duration-200 border-l-4 border-l-blue-500"
-            >
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        {patient.name}
-                      </h3>
-                      {hasMedicalHistory(patient) && (
-                        <div className="flex items-center gap-1">
-                          <Heart className="h-4 w-4 text-red-500" />
-                          <span className="text-xs text-gray-500 bg-red-50 px-2 py-1 rounded-full">
-                            {medicalHistoryCount} records
-                          </span>
+                  return (
+                    <tr key={patient.id}>
+                      <td className="px-4 py-3 align-top text-sm text-gray-600">
+                        {index + 1}
+                      </td>
+                      <td className="px-4 py-3 align-top">
+                        <div className="flex items-center gap-3">
+                          <div>
+                            <div className="text-sm font-medium text-gray-900">
+                              {patient.name}
+                            </div>
+                            {/* Has to update */}
+                            {/* records shown in the dedicated Records column */}
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      {patient.age && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {patient.age} years
-                        </span>
-                      )}
-                      {patient.gender && (
-                        <span className="text-gray-400">•</span>
-                      )}
-                      {patient.gender && <span>{patient.gender}</span>}
-                    </div>
-                  </div>
-                  <div className="flex space-x-1">
-                    <button
-                      onClick={() => handleViewPatient(patient)}
-                      className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-200"
-                      title="View Patient Details"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleEditPatient(patient)}
-                      className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-200"
-                      title="Edit Patient"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => deletePatient(patient.id)}
-                      className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-200"
-                      title="Delete Patient"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center text-sm">
-                    <Phone className="h-4 w-4 text-gray-400 mr-2" />
-                    <span className="text-gray-900 font-medium">
-                      {patient.contact}
-                    </span>
-                  </div>
-                  {patient.email && (
-                    <div className="flex items-center text-sm">
-                      <Mail className="h-4 w-4 text-gray-400 mr-2" />
-                      <span className="text-gray-900">{patient.email}</span>
-                    </div>
-                  )}
-
-                  {/* Medical Indicators */}
-                  {hasMedicalHistory(patient) && (
-                    <div className="pt-2 border-t border-gray-100">
-                      <div className="flex flex-wrap gap-1">
-                        {patient.allergies?.length > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">
-                            <AlertTriangle className="h-3 w-3" />
-                            Allergies
-                          </span>
+                      </td>
+                      <td className="px-4 py-3 align-top text-sm text-gray-700">
+                        {patient.age ? `${patient.age} yrs` : "—"}
+                        {patient.gender ? (
+                          <span className="ml-2">• {patient.gender}</span>
+                        ) : null}
+                      </td>
+                      <td className="px-4 py-3 align-top text-sm text-gray-900">
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-gray-400" />
+                          <span>{patient.contact}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 align-top text-sm text-gray-700">
+                        {patient.email ?? "—"}
+                      </td>
+                      <td className="px-4 py-3 align-top text-sm text-gray-700 relative">
+                        {hasMedicalHistory(patient) ? (
+                          <RecordBadges patient={patient} />
+                        ) : (
+                          "—"
                         )}
-                        {patient.chronic_conditions?.length > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">
-                            <Heart className="h-3 w-3" />
-                            Conditions
-                          </span>
-                        )}
-                        {patient.medications?.length > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full">
-                            <Pill className="h-3 w-3" />
-                            Medications
-                          </span>
-                        )}
-                        {patient.previous_surgeries?.length > 0 && (
-                          <span className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-purple-100 text-purple-700 rounded-full">
-                            <FileText className="h-3 w-3" />
-                            Surgery History
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between text-xs text-gray-500 pt-2 border-t border-gray-100">
-                    <span>
-                      Registered:{" "}
-                      {format(new Date(patient.created_at), "MMM d, yyyy")}
-                    </span>
-                    {patient.emergency_contact && (
-                      <span className="text-green-600">
-                        Emergency contact available
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+                      </td>
+                      <td className="px-4 py-3 align-top text-sm text-gray-500">
+                        {format(new Date(patient.created_at), "MMM d, yyyy")}
+                      </td>
+                      <td className="px-4 py-3 align-top text-right space-x-1">
+                        <button
+                          onClick={() => handleViewPatient(patient)}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-150"
+                          title="View Patient Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEditPatient(patient)}
+                          className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors duration-150"
+                          title="Edit Patient"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => deletePatient(patient.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-150"
+                          title="Delete Patient"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
 
       {filteredPatients.length === 0 && !loading && (
         <Card>
@@ -341,6 +534,11 @@ export function Patients() {
       <ViewPatientModal
         isOpen={isViewModalOpen}
         onClose={handleCloseModals}
+        onEdit={() => {
+          // Close view and open edit modal for the selected patient
+          setIsViewModalOpen(false);
+          setIsEditModalOpen(true);
+        }}
         patient={selectedPatient}
       />
 

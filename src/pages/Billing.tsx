@@ -1,8 +1,7 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Receipt,
   Search,
-  Filter,
   Download,
   Eye,
   CreditCard,
@@ -10,17 +9,12 @@ import {
   Calendar,
   Clock,
 } from "lucide-react";
-import { Button } from "../components/ui/Button";
+import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  CardTitle,
-} from "../components/ui/Card";
-import { AddBillModal } from "../components/AddBillModal";
-import { BillViewModal } from "../components/ViewBillModal"; // ADD THIS IMPORT
+import { Card, CardContent } from "../components/ui/Card";
+import { AddBillModal } from "../components/billComponents/AddBillModal";
+import { BillViewModal } from "../components/billComponents/ViewBillModal"; // ADD THIS IMPORT
 import { downloadBillAsHTML } from "../utils/downloadUtil"; // ADD THIS IMPORT
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";

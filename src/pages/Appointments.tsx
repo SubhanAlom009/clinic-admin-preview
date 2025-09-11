@@ -18,15 +18,15 @@ import {
   Edit3,
   Timer,
 } from "lucide-react";
-import { Button } from "../components/ui/Button";
+import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { Card, CardContent } from "../components/ui/Card";
-import { AddAppointmentModal } from "../components/AddAppointmentModal";
-import { RescheduleAppointmentModal } from "../components/RescheduleAppointmentModal";
-import { AppointmentDetailsModal } from "../components/AppointmentDetailsModal";
+import { AddAppointmentModal } from "../components/appointmentComponents/AddAppointmentModal";
+import { RescheduleAppointmentModal } from "../components/appointmentComponents/RescheduleAppointmentModal";
+import { AppointmentDetailsModal } from "../components/appointmentComponents/AppointmentDetailsModal";
 import { CalendarView } from "../components/CalendarView";
-import { QueueTab } from "../components/QueueTab";
+import { QueueTab } from "../components/queueComponents/QueueTab";
 import { supabase } from "../lib/supabase";
 import { useAuth } from "../hooks/useAuth";
 import { Appointment } from "../types";
@@ -497,17 +497,20 @@ export function Appointments() {
                         </div>
 
                         {/* Delay Information */}
-                        {appointment.delay_minutes &&
-                          appointment.delay_minutes > 0 && (
-                            <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg mb-4">
-                              <div className="flex items-center space-x-2">
-                                <AlertTriangle className="w-5 h-5 text-amber-600" />
-                                <span className="font-medium text-amber-800 text-sm">
-                                  Delayed by {appointment.delay_minutes} minutes
-                                </span>
-                              </div>
+                        {Number(appointment.delay_minutes ?? 0) > 0 && (
+                          <div className="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-lg mb-4">
+                            <div className="flex items-center space-x-2">
+                              <AlertTriangle className="w-5 h-5 text-amber-600" />
+                              <span className="font-medium text-amber-800 text-sm">
+                                Delayed by{" "}
+                                {Number(appointment.delay_minutes ?? 0)} minute
+                                {Number(appointment.delay_minutes ?? 0) === 1
+                                  ? ""
+                                  : "s"}
+                              </span>
                             </div>
-                          )}
+                          </div>
+                        )}
 
                         {/* Notes */}
                         {appointment.notes && (

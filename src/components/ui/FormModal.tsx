@@ -4,7 +4,7 @@
  */
 import React, { ReactNode } from "react";
 import { Modal } from "./Modal";
-import { Button } from "./Button";
+import { Button } from "./button";
 import { AlertCircle, Loader2 } from "lucide-react";
 
 interface FormModalProps {
@@ -19,7 +19,8 @@ interface FormModalProps {
   submitVariant?: "primary" | "secondary" | "danger" | "outline";
   isLoading?: boolean;
   error?: string;
-  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl";
+  // allow one larger modal for complex forms
+  maxWidth?: "sm" | "md" | "lg" | "xl" | "2xl" | "3xl";
   showCancelButton?: boolean;
   submitDisabled?: boolean;
 }
@@ -52,6 +53,7 @@ export function FormModal({
     lg: "max-w-lg",
     xl: "max-w-xl",
     "2xl": "max-w-2xl",
+    "3xl": "max-w-3xl",
   };
 
   return (

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet, NavLink, useNavigate, Link } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import {
   Home,
   Users,
@@ -15,7 +15,7 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  ArrowLeftCircle,
+  HomeIcon,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { NotificationCenter } from "./NotificationCenter";
@@ -37,6 +37,7 @@ export function Layout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0); // ADDED: Track unread notifications
+  const [clinicName, setClinicName] = useState<string | null>(null);
   const { signOut, user } = useAuth();
   const navigate = useNavigate();
 
@@ -86,6 +87,33 @@ export function Layout() {
     return () => {
       subscription.unsubscribe();
     };
+  }, [user]);
+
+  // Fetch clinic name for display in sidebar header
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchClinic = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("clinic_name")
+          .eq("id", user.id)
+          .single();
+
+        if (error) {
+          console.warn("Could not fetch clinic name:", error.message || error);
+          setClinicName(null);
+        } else {
+          setClinicName((data as any)?.clinic_name ?? null);
+        }
+      } catch (e) {
+        console.warn("Error fetching clinic name", e);
+        setClinicName(null);
+      }
+    };
+
+    fetchClinic();
   }, [user]);
 
   // ADDED: Function to handle notification updates
@@ -141,20 +169,18 @@ export function Layout() {
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
           <div
             className={`flex items-center ${
-              sidebarCollapsed ? "justify-center" : "space-x-3"
+              sidebarCollapsed ? "justify-center" : "space-x-2"
             }`}
           >
-            <Link
-              to="/"
-              className="group flex items-center justify-center p-2 rounded-lg border border-transparent hover:border-blue-300 hover:bg-blue-50 transition"
-              aria-label="Go to homepage"
-            >
-              <ArrowLeftCircle className="h-6 w-6 text-blue-600 group-hover:text-blue-800 transition" />
-            </Link>
+            <img
+              src="/logo_abhicure.jpg"
+              alt="AbhiCure Logo"
+              className="h-8 w-8 mt-1.5 object-contain"
+            />
             {!sidebarCollapsed && (
-              <>
-                <h1 className="text-xl font-bold text-gray-800">ClinicAdmin</h1>
-              </>
+              <h1 className="text-xl font-bold text-gray-800">
+                {clinicName ?? "ClinicAdmin"}
+              </h1>
             )}
           </div>
 
@@ -264,6 +290,14 @@ export function Layout() {
 
             <div className="flex items-center space-x-4">
               <button
+                onClick={() => navigate("/")}
+                className="group flex items-center justify-center p-2 rounded-lg border border-transparent border-blue-900 hover:bg-blue-50 transition"
+                aria-label="Go to homepage"
+              >
+                <HomeIcon className="h-5 w-5 mr-2 text-gray-600" />
+                <p>Go Back Home</p>
+              </button>
+              <button
                 onClick={() => setNotificationOpen(!notificationOpen)}
                 className="relative p-2 rounded-full hover:bg-gray-100 transition-colors duration-200"
               >
@@ -290,7 +324,7 @@ export function Layout() {
             {notificationOpen && (
               <NotificationCenter
                 onClose={() => setNotificationOpen(false)}
-                onNotificationUpdate={handleNotificationUpdate} // ADDED: Pass update handler
+                onNotificationUpdate={handleNotificationUpdate}
               />
             )}
           </div>

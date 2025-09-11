@@ -44,6 +44,10 @@ export interface Database {
           address: string | null;
           emergency_contact: string | null;
           medical_history: any;
+          medications: string[];
+          previous_surgeries: string[];
+          family_history: string;
+          additional_notes: string;
           created_at: string;
           updated_at: string;
         };
@@ -57,6 +61,10 @@ export interface Database {
           address?: string | null;
           emergency_contact?: string | null;
           medical_history?: any;
+          medications?: string[];
+          previous_surgeries?: string[];
+          family_history?: string;
+          additional_notes?: string;
         };
         Update: {
           name?: string;
@@ -67,6 +75,10 @@ export interface Database {
           address?: string | null;
           emergency_contact?: string | null;
           medical_history?: any;
+          medications?: string[];
+          previous_surgeries?: string[];
+          family_history?: string;
+          additional_notes?: string;
           updated_at?: string;
         };
       };

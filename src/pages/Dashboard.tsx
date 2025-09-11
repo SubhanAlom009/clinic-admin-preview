@@ -17,12 +17,12 @@ import {
   CardContent,
   CardTitle,
 } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
+import { Button } from "../components/ui/button";
 import { useDashboardMetrics } from "../hooks/useDashboardMetrics";
 import { useRecentActivity } from "../hooks/useRecentActivity";
-import { AddPatientModal } from "../components/AddPatientModal";
-import { AddAppointmentModal } from "../components/AddAppointmentModal";
-import { AddBillModal } from "../components/AddBillModal";
+import { AddPatientModal } from "../components/patientComponents/AddPatientModal";
+import { AddAppointmentModal } from "../components/appointmentComponents/AddAppointmentModal";
+import { AddBillModal } from "../components/billComponents/AddBillModal";
 import { format } from "date-fns";
 
 export function Dashboard() {
