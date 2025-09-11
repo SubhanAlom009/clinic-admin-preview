@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
-import { Button } from "../components/ui/button";
+import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Eye, EyeOff } from "lucide-react";
 import { signupSchema, signInSchema } from "../validation/UserValidation";

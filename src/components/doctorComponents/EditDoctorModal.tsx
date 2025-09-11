@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Modal } from "../ui/Modal";
 import { Input } from "../ui/Input";
-import { Button } from "../ui/button";
+import { Button } from "../ui/Button";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import { Doctor } from "../../types";

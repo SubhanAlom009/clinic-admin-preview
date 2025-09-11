@@ -1,5 +1,5 @@
 import { X, Download, Mail, Phone, MapPin } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/Button";
 import { format } from "date-fns";
 
 interface BillViewModalProps {

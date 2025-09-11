@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { X, Receipt } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/Button";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import { Patient } from "../../types";

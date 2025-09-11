@@ -4,7 +4,7 @@
  */
 import React, { ReactNode } from "react";
 import { Modal } from "./Modal";
-import { Button } from "./button";
+import { Button } from "./Button";
 import { AlertCircle, Loader2 } from "lucide-react";
 
 interface FormModalProps {

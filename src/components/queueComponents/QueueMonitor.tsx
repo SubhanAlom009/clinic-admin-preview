@@ -1,6 +1,6 @@
 import { useRobustQueue } from "../../hooks/useRobustQueue";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
-import { Button } from "../ui/button";
+import { Button } from "../ui/Button";
 import { Badge } from "../ui/Badge";
 import {
   Clock,

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Plus, Search, Edit, Trash2, Phone, UserCheck } from "lucide-react";
-import { Button } from "../components/ui/button";
+import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Card, CardContent } from "../components/ui/Card";
 import { AddDoctorModal } from "../components/doctorComponents/AddDoctorModal";

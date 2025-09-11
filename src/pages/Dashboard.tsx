@@ -17,7 +17,7 @@ import {
   CardContent,
   CardTitle,
 } from "../components/ui/Card";
-import { Button } from "../components/ui/button";
+import { Button } from "../components/ui/Button";
 import { useDashboardMetrics } from "../hooks/useDashboardMetrics";
 import { useRecentActivity } from "../hooks/useRecentActivity";
 import { AddPatientModal } from "../components/patientComponents/AddPatientModal";

@@ -8,7 +8,7 @@ import {
   Calendar,
   RefreshCw,
 } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/Button";
 import { Card, CardContent } from "../ui/Card";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";

@@ -9,7 +9,7 @@ import {
   Calendar,
   Clock,
 } from "lucide-react";
-import { Button } from "../components/ui/button";
+import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { Card, CardContent } from "../components/ui/Card";

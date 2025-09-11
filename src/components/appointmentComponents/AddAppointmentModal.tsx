@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from "react";
 import { X, Calendar } from "lucide-react";
-import { Button } from "../ui/button";
+import { Button } from "../ui/Button";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../hooks/useAuth";
 import { AppointmentStatus } from "../../constants";
