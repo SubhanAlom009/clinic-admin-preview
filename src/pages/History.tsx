@@ -17,7 +17,7 @@ import {
   CardContent,
   CardTitle,
 } from "../components/ui/Card";
-import { Button } from "../components/ui/Button";
+import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/Input";
 import { Select } from "../components/ui/Select";
 import { supabase } from "../lib/supabase";

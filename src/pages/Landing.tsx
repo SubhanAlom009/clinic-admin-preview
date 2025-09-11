@@ -18,7 +18,7 @@ import {
   MapPin,
   PlayCircle,
 } from "lucide-react";
-import { Button } from "../components/ui/Button";
+import { Button } from "../components/ui/button";
 import { useAuth } from "../hooks/useAuth";
 import { supabase } from "../lib/supabase";
 import HeaderHome from "../components/HeaderHome";
